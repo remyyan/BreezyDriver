@@ -20,77 +20,17 @@ const Explore = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
 
   const filters = [
-    { id: 'all', label: 'All Spots', count: 247 },
-    { id: 'beginner', label: '🟢 Beginner', count: 156 },
-    { id: 'intermediate', label: '🟡 Intermediate', count: 72 },
-    { id: 'advanced', label: '🔴 Advanced', count: 19 },
-    { id: 'parking', label: '🅿️ Parking', count: 89 },
-    { id: 'merging', label: '🔄 Merging', count: 34 },
-    { id: 'roundabout', label: '⭕ Roundabouts', count: 28 }
+    { id: 'all', label: 'All Spots', count: 0 },
+    { id: 'beginner', label: '🟢 Beginner', count: 0 },
+    { id: 'intermediate', label: '🟡 Intermediate', count: 0 },
+    { id: 'advanced', label: '🔴 Advanced', count: 0 },
+    { id: 'parking', label: '🅿️ Parking', count: 0 },
+    { id: 'merging', label: '🔄 Merging', count: 0 },
+    { id: 'roundabout', label: '⭕ Roundabouts', count: 0 }
   ];
 
-  const locations = [
-    {
-      name: "Centennial College Parking Lot",
-      address: "941 Progress Ave, Scarborough, ON",
-      rating: 4.8,
-      reviewCount: 127,
-      difficulty: 'Beginner' as const,
-      features: ["Large spaces", "Cones available", "Security cameras", "Weekend access"],
-      distance: "2.3 km",
-      lastReview: "2 days ago"
-    },
-    {
-      name: "Woodbine Beach Parking",
-      address: "1675 Lake Shore Blvd E, Toronto, ON",
-      rating: 4.6,
-      reviewCount: 89,
-      difficulty: 'Beginner' as const,
-      features: ["Parallel parking", "Scenic view", "Low traffic", "Free parking"],
-      distance: "3.1 km",
-      lastReview: "1 week ago"
-    },
-    {
-      name: "Industrial Road Practice",
-      address: "Industrial Road, Mississauga, ON",
-      rating: 4.2,
-      reviewCount: 64,
-      difficulty: 'Intermediate' as const,
-      features: ["Real traffic", "Merging practice", "Multiple lanes", "Roundabout nearby"],
-      distance: "5.8 km",
-      lastReview: "3 days ago"
-    },
-    {
-      name: "Sherway Gardens (Off Hours)",
-      address: "25 The West Mall, Etobicoke, ON",
-      rating: 4.5,
-      reviewCount: 156,
-      difficulty: 'Beginner' as const,
-      features: ["Large lot", "Clear markings", "Security", "Food court nearby"],
-      distance: "7.2 km",
-      lastReview: "5 days ago"
-    },
-    {
-      name: "Highway 407 On-Ramp Practice",
-      address: "Highway 407, Vaughan, ON",
-      rating: 3.9,
-      reviewCount: 42,
-      difficulty: 'Advanced' as const,
-      features: ["Highway merging", "High speed", "Real traffic", "Experienced only"],
-      distance: "12.4 km",
-      lastReview: "1 day ago"
-    },
-    {
-      name: "Square One Mall Parking",
-      address: "100 City Centre Dr, Mississauga, ON",
-      rating: 4.3,
-      reviewCount: 98,
-      difficulty: 'Intermediate' as const,
-      features: ["Busy environment", "Pedestrians", "Multiple levels", "Various challenges"],
-      distance: "8.7 km",
-      lastReview: "4 days ago"
-    }
-  ];
+  // Locations will be loaded from Firestore
+  const locations: any[] = [];
 
   const handleSearch = () => {
     toast({
@@ -190,17 +130,34 @@ const Explore = () => {
 
         {/* Location Results */}
         <div className="grid gap-4">
-          {locations.map((location, index) => (
-            <LocationCard key={index} {...location} />
-          ))}
+          {locations.length > 0 ? (
+            locations.map((location, index) => (
+              <LocationCard key={index} {...location} />
+            ))
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Search className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No practice spots found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Be the first to add practice locations in your area!
+                </p>
+                <Button onClick={() => toast({ title: "Add Location", description: "Feature coming soon!" })}>
+                  Add First Location
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Load More */}
-        <div className="text-center mt-8">
-          <Button variant="outline" onClick={() => toast({ title: "Load More", description: "Loading more locations..." })}>
-            Load More Results
-          </Button>
-        </div>
+        {/* Load More - only show if there are locations */}
+        {locations.length > 0 && (
+          <div className="text-center mt-8">
+            <Button variant="outline" onClick={() => toast({ title: "Load More", description: "Loading more locations..." })}>
+              Load More Results
+            </Button>
+          </div>
+        )}
 
         {/* Popular Categories */}
         <Card className="mt-8">

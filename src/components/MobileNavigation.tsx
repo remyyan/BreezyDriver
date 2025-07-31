@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { 
   Home, 
   MapPin, 
@@ -15,8 +17,10 @@ import {
 
 const MobileNavigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
 
   const handleNavigation = (label: string) => {
     switch (label) {
@@ -45,6 +49,12 @@ const MobileNavigation = () => {
 
   const handleMenuAction = (action: string) => {
     setIsMenuOpen(false);
+
+    if (action === "Sign In") {
+      setShowAuthModal(true);
+      return;
+    }
+
     toast({
       title: action,
       description: `${action} feature coming soon!`,
@@ -94,24 +104,30 @@ const MobileNavigation = () => {
         {isMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-white border-b border-border shadow-lg">
             <div className="px-4 py-3 space-y-2">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start"
-                onClick={() => handleMenuAction("Sign In")}
-              >
-                <User className="w-4 h-4 mr-3" />
-                Sign In
-              </Button>
-              <Button 
-                variant="ghost" 
+              {!currentUser ? (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleMenuAction("Sign In")}
+                >
+                  <User className="w-4 h-4 mr-3" />
+                  Sign In
+                </Button>
+              ) : (
+                <div className="text-sm text-muted-foreground px-3 py-2">
+                  Welcome, {currentUser.displayName || 'Driver'}!
+                </div>
+              )}
+              <Button
+                variant="ghost"
                 className="w-full justify-start"
                 onClick={() => handleMenuAction("Change Location")}
               >
                 <MapPin className="w-4 h-4 mr-3" />
                 Change Location
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="w-full justify-start"
                 onClick={() => handleMenuAction("Settings")}
               >
@@ -149,6 +165,12 @@ const MobileNavigation = () => {
 
       {/* Spacer for fixed navigation */}
       <div className="h-16 w-full" /> {/* Top spacer */}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </>
   );
 };

@@ -26,45 +26,8 @@ const MapView = () => {
   const [selectedLocation, setSelectedLocation] = useState<PracticeLocation | null>(null);
   const { toast } = useToast();
 
-  // Sample practice locations around Toronto
-  // const practiceLocations: PracticeLocation[] = [
-  //   {
-  //     id: '1',
-  //     name: 'Centennial College Parking Lot',
-  //     coordinates: [-79.2429, 43.7849],
-  //     rating: 4.8,
-  //     difficulty: 'Beginner',
-  //     features: ['Large spaces', 'Cones available', 'Security cameras'],
-  //     reviewCount: 127
-  //   },
-  //   {
-  //     id: '2',
-  //     name: 'Woodbine Beach Parking',
-  //     coordinates: [-79.3085, 43.6643],
-  //     rating: 4.6,
-  //     difficulty: 'Beginner',
-  //     features: ['Parallel parking', 'Scenic view', 'Low traffic'],
-  //     reviewCount: 89
-  //   },
-  //   {
-  //     id: '3',
-  //     name: 'Industrial Road Practice',
-  //     coordinates: [-79.6441, 43.5890],
-  //     rating: 4.2,
-  //     difficulty: 'Intermediate',
-  //     features: ['Real traffic', 'Merging practice', 'Multiple lanes'],
-  //     reviewCount: 64
-  //   },
-  //   {
-  //     id: '4',
-  //     name: 'Don Mills Shopping Centre',
-  //     coordinates: [-79.3441, 43.7615],
-  //     rating: 4.5,
-  //     difficulty: 'Beginner',
-  //     features: ['Large lot', 'Clear markings', 'Security'],
-  //     reviewCount: 156
-  //   }
-  // ];
+  // Practice locations will be loaded from Firestore
+  const practiceLocations: PracticeLocation[] = [];
 
   const initializeMap = () => {
     if (!mapContainer.current || isMapLoaded) return;

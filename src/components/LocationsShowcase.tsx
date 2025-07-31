@@ -146,19 +146,19 @@ const LocationsShowcase = () => {
         {/* Stats Bar */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-primary">1,247</div>
+            <div className="text-2xl font-bold text-primary">0</div>
             <div className="text-sm text-muted-foreground">Practice Spots</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-secondary">5,382</div>
+            <div className="text-2xl font-bold text-secondary">0</div>
             <div className="text-sm text-muted-foreground">Community Reviews</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-warning">4.7★</div>
+            <div className="text-2xl font-bold text-warning">-</div>
             <div className="text-sm text-muted-foreground">Average Rating</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-accent">12</div>
+            <div className="text-2xl font-bold text-accent">1</div>
             <div className="text-sm text-muted-foreground">Cities Covered</div>
           </div>
         </div>
