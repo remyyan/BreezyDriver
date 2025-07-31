@@ -3,10 +3,30 @@ import { Button } from "@/components/ui/button";
 import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Filter, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const LocationsShowcase = () => {
   const { toast } = useToast();
-  
+  const [featuredLocations, setFeaturedLocations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchLocations() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "locations"));
+        const locations = querySnapshot.docs.map(doc => doc.data());
+        setFeaturedLocations(locations);
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to load locations." });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLocations();
+  }, [toast]);
+
   const handleFilter = (filterName: string) => {
     toast({
       title: `Filter: ${filterName}`,
@@ -27,50 +47,6 @@ const LocationsShowcase = () => {
       description: "Map view with all locations coming soon!",
     });
   };
-
-  // Sample data - in real app this would come from Firebase
-  const featuredLocations = [
-    {
-      name: "Centennial College Parking Lot",
-      address: "941 Progress Ave, Scarborough, ON",
-      rating: 4.8,
-      reviewCount: 127,
-      difficulty: 'Beginner' as const,
-      features: ["Large spaces", "Cones available", "Security cameras", "Weekend access"],
-      distance: "2.3 km",
-      lastReview: "2 days ago"
-    },
-    {
-      name: "Woodbine Beach Parking",
-      address: "1675 Lake Shore Blvd E, Toronto, ON",
-      rating: 4.6,
-      reviewCount: 89,
-      difficulty: 'Beginner' as const,
-      features: ["Parallel parking", "Scenic view", "Low traffic", "Free parking"],
-      distance: "3.1 km",
-      lastReview: "1 week ago"
-    },
-    {
-      name: "Industrial Road Practice",
-      address: "Industrial Road, Mississauga, ON",
-      rating: 4.2,
-      reviewCount: 64,
-      difficulty: 'Intermediate' as const,
-      features: ["Real traffic", "Merging practice", "Multiple lanes", "Roundabout nearby"],
-      distance: "5.8 km",
-      lastReview: "3 days ago"
-    },
-    {
-      name: "Sherway Gardens (Off Hours)",
-      address: "25 The West Mall, Etobicoke, ON",
-      rating: 4.5,
-      reviewCount: 156,
-      difficulty: 'Beginner' as const,
-      features: ["Large lot", "Clear markings", "Security", "Food court nearby"],
-      distance: "7.2 km",
-      lastReview: "5 days ago"
-    }
-  ];
 
   return (
     <section id="locations-showcase" className="py-16 bg-background">
