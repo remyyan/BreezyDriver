@@ -72,9 +72,9 @@ const MobileNavigation = () => {
   return (
     <>
       {/* Top Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
+      {/* <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
-          {/* Logo */}
+          // Logo
           <div className="flex items-center">
             <h1 className="text-xl font-bold text-primary">
               Breezy<span className="text-accent">Driver</span>
@@ -82,15 +82,15 @@ const MobileNavigation = () => {
           </div>
 
           {/* Location Badge */}
-          <div className="flex-1 flex justify-center">
+          {/* <div className="flex-1 flex justify-center">
             <Badge variant="outline" className="text-xs">
               <MapPin className="w-3 h-3 mr-1" />
               Toronto, ON
             </Badge>
-          </div>
+          </div> */}
 
           {/* Menu Button */}
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -101,7 +101,7 @@ const MobileNavigation = () => {
         </div>
 
         {/* Dropdown Menu */}
-        {isMenuOpen && (
+        {/* {isMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-white border-b border-border shadow-lg">
             <div className="px-4 py-3 space-y-2">
               {!currentUser ? (
@@ -136,7 +136,7 @@ const MobileNavigation = () => {
             </div>
           </div>
         )}
-      </nav>
+      </nav> */}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border">

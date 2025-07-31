@@ -87,10 +87,10 @@ const HeroSection = () => {
             >
               Explore Practice Spots
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="text-lg px-8 py-6 font-semibold min-w-48 border-white/30 text-white hover:bg-white/10"
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 py-6 font-semibold min-w-48 border-white text-white bg-white/10 hover:bg-white/20"
               onClick={handleAddLocation}
             >
               Add a Location
