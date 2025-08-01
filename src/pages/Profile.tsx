@@ -5,7 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getUserContributionStats, UserContributionStats } from "@/lib/statsService";
 import {
   User,
   MapPin,
@@ -21,6 +22,29 @@ const Profile = () => {
   const { toast } = useToast();
   const { currentUser, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [userStats, setUserStats] = useState<UserContributionStats>({
+    spotsAdded: 0,
+    reviewsWritten: 0,
+    bookmarkedSpots: 0
+  });
+
+  // Load user stats when user is available
+  useEffect(() => {
+    if (currentUser) {
+      loadUserStats();
+    }
+  }, [currentUser]);
+
+  const loadUserStats = async () => {
+    if (!currentUser) return;
+
+    try {
+      const stats = await getUserContributionStats(currentUser.uid);
+      setUserStats(stats);
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    }
+  };
 
   const handleAction = (action: string) => {
     toast({
@@ -129,7 +153,7 @@ const Profile = () => {
           <Card>
             <CardContent className="p-4 text-center">
               <MapPin className="w-6 h-6 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{userStats.spotsAdded}</p>
               <p className="text-sm text-muted-foreground">Spots Added</p>
             </CardContent>
           </Card>
@@ -137,7 +161,7 @@ const Profile = () => {
           <Card>
             <CardContent className="p-4 text-center">
               <Star className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{userStats.reviewsWritten}</p>
               <p className="text-sm text-muted-foreground">Reviews</p>
             </CardContent>
           </Card>
@@ -187,8 +211,8 @@ const Profile = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-between"
                 onClick={() => handleAction("My Added Spots")}
               >
@@ -196,7 +220,7 @@ const Profile = () => {
                   <MapPin className="w-4 h-4 mr-2" />
                   My Added Spots
                 </span>
-                <Badge variant="outline">0</Badge>
+                <Badge variant="outline">{userStats.spotsAdded}</Badge>
               </Button>
 
               <Button
@@ -208,11 +232,11 @@ const Profile = () => {
                   <Star className="w-4 h-4 mr-2" />
                   My Reviews
                 </span>
-                <Badge variant="outline">0</Badge>
+                <Badge variant="outline">{userStats.reviewsWritten}</Badge>
               </Button>
-              
-              <Button 
-                variant="outline" 
+
+              <Button
+                variant="outline"
                 className="w-full justify-between"
                 onClick={() => handleAction("Bookmarked Spots")}
               >
@@ -220,7 +244,7 @@ const Profile = () => {
                   <User className="w-4 h-4 mr-2" />
                   Bookmarked Spots
                 </span>
-                <Badge variant="outline">8</Badge>
+                <Badge variant="outline">{userStats.bookmarkedSpots}</Badge>
               </Button>
             </div>
           </CardContent>

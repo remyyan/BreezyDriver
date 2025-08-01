@@ -58,3 +58,42 @@ export interface LocationStats {
   recentSubmissions: number;
   averageRating: number;
 }
+
+// Review interfaces
+export interface LocationReview {
+  id?: string; // Firestore document ID
+  locationId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  rating: number; // 1-5 stars
+  comment: string;
+  helpful?: number; // Number of helpful votes
+  createdAt: Date;
+  updatedAt?: Date;
+  isVerified?: boolean; // If user actually visited the location
+}
+
+export interface ReviewFormData {
+  rating: number;
+  comment: string;
+  isVerified?: boolean;
+}
+
+// User bookmark interface
+export interface UserBookmark {
+  id?: string;
+  userId: string;
+  locationId: string;
+  createdAt: Date;
+}
+
+// User contribution stats
+export interface UserStats {
+  userId: string;
+  spotsAdded: number;
+  reviewsWritten: number;
+  helpfulVotes: number;
+  joinedAt: Date;
+  lastActive: Date;
+}

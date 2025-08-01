@@ -10,6 +10,7 @@ import Explore from "./pages/Explore";
 import AddLocation from "./pages/AddLocation";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import LocationDetails from "./pages/LocationDetails";
 import NotFound from "./pages/NotFound";
 import MobileNavigation from "./components/MobileNavigation";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/add-location" element={<AddLocation />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/location/:id" element={<LocationDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

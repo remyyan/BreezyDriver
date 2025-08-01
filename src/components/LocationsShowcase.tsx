@@ -6,29 +6,42 @@ import { MapPin, Filter, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PracticeLocation } from "@/lib/firebase";
 import { getRecentLocations } from "@/lib/locationService";
+import { getCachedAppStats, AppStats } from "@/lib/statsService";
 
 const LocationsShowcase = () => {
   const { toast } = useToast();
   const [featuredLocations, setFeaturedLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [appStats, setAppStats] = useState<AppStats>({
+    totalLocations: 0,
+    totalReviews: 0,
+    averageRating: 0,
+    recentSubmissions: 0
+  });
 
   useEffect(() => {
-    async function fetchLocations() {
+    async function fetchData() {
       try {
-        const locations = await getRecentLocations(6);
+        // Fetch locations and stats in parallel
+        const [locations, stats] = await Promise.all([
+          getRecentLocations(6),
+          getCachedAppStats()
+        ]);
+
         setFeaturedLocations(locations);
+        setAppStats(stats);
       } catch (error) {
-        console.error('Error fetching locations:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
-          description: "Failed to load locations.",
+          description: "Failed to load data.",
           variant: "destructive"
         });
       } finally {
         setLoading(false);
       }
     }
-    fetchLocations();
+    fetchData();
   }, [toast]);
 
   const handleFilter = (filterName: string) => {
@@ -186,20 +199,22 @@ const LocationsShowcase = () => {
         {/* Stats Bar */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-primary">0</div>
+            <div className="text-2xl font-bold text-primary">{appStats.totalLocations}</div>
             <div className="text-sm text-muted-foreground">Practice Spots</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-secondary">0</div>
+            <div className="text-2xl font-bold text-secondary">{appStats.totalReviews}</div>
             <div className="text-sm text-muted-foreground">Community Reviews</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-warning">-</div>
+            <div className="text-2xl font-bold text-warning">
+              {appStats.averageRating > 0 ? appStats.averageRating.toFixed(1) : '-'}
+            </div>
             <div className="text-sm text-muted-foreground">Average Rating</div>
           </div>
           <div className="p-4">
-            <div className="text-2xl font-bold text-accent">1</div>
-            <div className="text-sm text-muted-foreground">Cities Covered</div>
+            <div className="text-2xl font-bold text-accent">{appStats.recentSubmissions}</div>
+            <div className="text-sm text-muted-foreground">Recent Submissions</div>
           </div>
         </div>
       </div>

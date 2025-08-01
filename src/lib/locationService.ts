@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db, PracticeLocation, LocationFormData, LocationStats, DifficultyLevel } from './firebase';
 import { trackEvent } from './analyticsService';
+import { updateUserStats } from './reviewService';
 
 const LOCATIONS_COLLECTION = 'locations';
 
@@ -75,6 +76,11 @@ export const addLocation = async (
       ...newLocation,
       submittedAt: Timestamp.fromDate(newLocation.submittedAt)
     });
+
+    // Update user stats
+    if (userId) {
+      await updateUserStats(userId, 'location_added');
+    }
 
     // Track analytics event
     await trackEvent({

@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Star, MapPin, Clock, Car, Users, MessageSquare } from "lucide-react";
 import { PracticeLocation } from "@/lib/firebase";
 import { trackLocationView } from "@/lib/locationService";
+import { getLastReviewDate } from "@/lib/statsService";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface LocationCardProps extends Omit<PracticeLocation, 'submittedAt' | 'updatedAt' | 'submittedBy' | 'isApproved'> {
@@ -28,11 +29,14 @@ const LocationCard = ({
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const image = images && images.length > 0 ? images[0] : undefined;
+  const [realLastReview, setRealLastReview] = useState<string>(lastReview);
 
-  // Track location view when component mounts
+  // Track location view when component mounts and load real last review date
   useEffect(() => {
     if (id) {
       trackLocationView(id, currentUser?.uid);
+      // Load real last review date
+      getLastReviewDate(id).then(setRealLastReview).catch(console.error);
     }
   }, [id, currentUser?.uid]);
   const getDifficultyColor = (difficulty: string) => {
@@ -129,21 +133,25 @@ const LocationCard = ({
         {/* Last Review */}
         <div className="flex items-center text-xs text-muted-foreground mb-4">
           <Clock className="w-3 h-3 mr-1" />
-          Last reviewed {lastReview}
+          Last reviewed {realLastReview}
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/location/${id}`)}
             className="flex-1"
+          >
+            View Details
+          </Button>
+          <Button
             size="sm"
             onClick={() => navigate(`/map?location=${id}`)}
           >
             <MapPin className="w-4 h-4 mr-1" />
-            View on Map
-          </Button>
-          <Button variant="outline" size="sm">
-            <MessageSquare className="w-4 h-4" />
+            Map
           </Button>
         </div>
       </CardContent>

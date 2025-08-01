@@ -7,11 +7,11 @@ import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
 import { PracticeLocation, DifficultyLevel } from "@/lib/firebase";
 import { getLocations, getLocationsByDifficulty, searchLocations } from "@/lib/locationService";
+import { getCachedFeatureStats, FeatureStats } from "@/lib/statsService";
 import {
   Search,
   Filter,
   MapPin,
-  Star,
   Sliders,
   Navigation,
   Loader2
@@ -24,26 +24,40 @@ const Explore = () => {
   const [locations, setLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [featureStats, setFeatureStats] = useState<FeatureStats>({});
+
+  const getFeatureCount = (featureName: string): number => {
+    const keys = Object.keys(featureStats);
+    const matchingKey = keys.find(key =>
+      key.toLowerCase().includes(featureName.toLowerCase())
+    );
+    return matchingKey ? featureStats[matchingKey] : 0;
+  };
 
   const filters = [
     { id: 'all', label: 'All Spots', count: locations.length },
     { id: 'beginner', label: '🟢 Beginner', count: locations.filter(l => l.difficulty === 'Beginner').length },
     { id: 'intermediate', label: '🟡 Intermediate', count: locations.filter(l => l.difficulty === 'Intermediate').length },
     { id: 'advanced', label: '🔴 Advanced', count: locations.filter(l => l.difficulty === 'Advanced').length },
-    { id: 'parking', label: '🅿️ Parking', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('parking'))).length },
-    { id: 'merging', label: '🔄 Merging', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('merging'))).length },
-    { id: 'roundabout', label: '⭕ Roundabouts', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('roundabout'))).length }
+    // { id: 'parking', label: '🅿️ Parking Practice', count: getFeatureCount('parking') },
+    // { id: 'merging', label: '🔄 Merging Practice', count: getFeatureCount('merging') },
+    // { id: 'roundabout', label: '⭕ Roundabouts', count: getFeatureCount('roundabout') },
+    // { id: 'school', label: '🏫 School Zones', count: getFeatureCount('school') }
   ];
 
-  // Load locations on component mount
+  // Load locations and stats on component mount
   useEffect(() => {
-    async function fetchLocations() {
+    async function fetchData() {
       try {
         setLoading(true);
-        const allLocations = await getLocations();
+        const [allLocations, stats] = await Promise.all([
+          getLocations(),
+          getCachedFeatureStats()
+        ]);
         setLocations(allLocations);
+        setFeatureStats(stats);
       } catch (error) {
-        console.error('Error fetching locations:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
           description: "Failed to load practice spots.",
@@ -53,7 +67,7 @@ const Explore = () => {
         setLoading(false);
       }
     }
-    fetchLocations();
+    fetchData();
   }, [toast]);
 
   // Filter locations based on selected filter
@@ -65,6 +79,7 @@ const Explore = () => {
     if (selectedFilter === 'parking') return location.features.some(f => f.toLowerCase().includes('parking'));
     if (selectedFilter === 'merging') return location.features.some(f => f.toLowerCase().includes('merging'));
     if (selectedFilter === 'roundabout') return location.features.some(f => f.toLowerCase().includes('roundabout'));
+    if (selectedFilter === 'school') return location.features.some(f => f.toLowerCase().includes('school'));
     return true;
   });
 
@@ -243,13 +258,12 @@ const Explore = () => {
                 </CardContent>
               </Card>
             ))
-          ) : locations.length > 0 ? (
-            locations.map((location, index) => (
+          ) : filteredLocations.length > 0 ? (
+            filteredLocations.map((location, index) => (
               <LocationCard
                 key={location.id || index}
                 {...location}
                 distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now
-                lastReview={`${Math.floor(Math.random() * 30 + 1)} days ago`} // Mock last review
               />
             ))
           ) : (
@@ -269,7 +283,7 @@ const Explore = () => {
         </div>
 
         {/* Load More - only show if there are locations */}
-        {locations.length > 0 && (
+        {filteredLocations.length > 0 && (
           <div className="text-center mt-8">
             <Button variant="outline" onClick={() => toast({ title: "Load More", description: "Loading more locations..." })}>
               Load More Results
@@ -278,7 +292,7 @@ const Explore = () => {
         )}
 
         {/* Popular Categories */}
-        <Card className="mt-8">
+        {/* <Card className="mt-8">
           <CardHeader>
             <CardTitle>Popular Categories</CardTitle>
           </CardHeader>
@@ -306,7 +320,7 @@ const Explore = () => {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
