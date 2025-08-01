@@ -4,22 +4,26 @@ import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Filter, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { PracticeLocation } from "@/lib/firebase";
+import { getRecentLocations } from "@/lib/locationService";
 
 const LocationsShowcase = () => {
   const { toast } = useToast();
-  const [featuredLocations, setFeaturedLocations] = useState<any[]>([]);
+  const [featuredLocations, setFeaturedLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchLocations() {
       try {
-        const querySnapshot = await getDocs(collection(db, "locations"));
-        const locations = querySnapshot.docs.map(doc => doc.data());
+        const locations = await getRecentLocations(6);
         setFeaturedLocations(locations);
       } catch (error) {
-        toast({ title: "Error", description: "Failed to load locations." });
+        console.error('Error fetching locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load locations.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
@@ -104,9 +108,45 @@ const LocationsShowcase = () => {
 
         {/* Locations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
-          {featuredLocations.map((location, index) => (
-            <LocationCard key={index} {...location} />
-          ))}
+          {loading ? (
+            // Loading skeleton
+            Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden animate-pulse">
+                <div className="h-48 bg-muted"></div>
+                <CardHeader>
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-muted rounded w-full"></div>
+                    <div className="h-3 bg-muted rounded w-2/3"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : featuredLocations.length > 0 ? (
+            featuredLocations.map((location, index) => (
+              <LocationCard
+                key={location.id || index}
+                {...location}
+                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now
+                lastReview={`${Math.floor(Math.random() * 30 + 1)} days ago`} // Mock last review
+              />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">No practice spots yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Be the first to add practice locations in your area!
+              </p>
+              <Button onClick={handleAddSpot}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Location
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* CTA Section */}

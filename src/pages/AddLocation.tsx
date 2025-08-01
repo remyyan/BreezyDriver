@@ -6,19 +6,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  MapPin, 
-  Star, 
-  Camera, 
+import { useAuth } from "@/contexts/AuthContext";
+import { LocationFormData, DifficultyLevel, LocationCoordinates } from "@/lib/firebase";
+import { addLocation } from "@/lib/locationService";
+import MapPicker from "@/components/MapPicker";
+import {
+  MapPin,
+  Star,
+  Camera,
   Plus,
   Minus,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
 
 const AddLocation = () => {
   const { toast } = useToast();
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
+  const { currentUser } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [formData, setFormData] = useState<LocationFormData>({
+    name: '',
+    address: '',
+    description: '',
+    difficulty: '',
+    features: []
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const features = [
     'Large parking spaces',
@@ -40,25 +54,101 @@ const AddLocation = () => {
   ];
 
   const difficulties = [
-    { level: 'Beginner', color: 'bg-green-500', description: 'Perfect for new drivers' },
-    { level: 'Intermediate', color: 'bg-yellow-500', description: 'Some experience needed' },
-    { level: 'Advanced', color: 'bg-red-500', description: 'Challenging for experienced learners' }
+    { level: 'Beginner' as DifficultyLevel, color: 'bg-green-500', description: 'Perfect for new drivers' },
+    { level: 'Intermediate' as DifficultyLevel, color: 'bg-yellow-500', description: 'Some experience needed' },
+    { level: 'Advanced' as DifficultyLevel, color: 'bg-red-500', description: 'Challenging for experienced learners' }
   ];
 
   const toggleFeature = (feature: string) => {
-    setSelectedFeatures(prev => 
-      prev.includes(feature) 
-        ? prev.filter(f => f !== feature)
-        : [...prev, feature]
-    );
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.includes(feature)
+        ? prev.features.filter(f => f !== feature)
+        : [...prev.features, feature]
+    }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleLocationSelect = (coordinates: LocationCoordinates) => {
+    setFormData(prev => ({
+      ...prev,
+      coordinates
+    }));
+  };
+
+  const handleInputChange = (field: keyof LocationFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleDifficultySelect = (difficulty: DifficultyLevel) => {
+    setFormData(prev => ({ ...prev, difficulty }));
+    if (formErrors.difficulty) {
+      setFormErrors(prev => ({ ...prev, difficulty: undefined }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Location name is required';
+    }
+    if (!formData.address.trim()) {
+      errors.address = 'Address is required';
+    }
+    if (!formData.difficulty) {
+      errors.difficulty = 'Difficulty level is required';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Location Submitted!",
-      description: "Thank you for contributing to the community. Your spot will be reviewed and added soon.",
-    });
+
+    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const locationId = await addLocation(formData, currentUser?.uid);
+
+      toast({
+        title: "Location Submitted!",
+        description: "Thank you for contributing to the community. Your spot will be reviewed and added soon.",
+      });
+
+      // Reset form
+      setFormData({
+        name: '',
+        address: '',
+        description: '',
+        difficulty: '',
+        features: []
+      });
+      setFormErrors({});
+
+    } catch (error) {
+      console.error('Error submitting location:', error);
+      toast({
+        title: "Submission Failed",
+        description: error instanceof Error ? error.message : "Failed to submit location. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,27 +170,39 @@ const AddLocation = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="name">Location Name *</Label>
-                <Input 
-                  id="name" 
+                <Input
+                  id="name"
                   placeholder="e.g., Centennial College Parking Lot"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
                   required
                 />
+                {formErrors.name && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.name}</p>
+                )}
               </div>
-              
+
               <div>
                 <Label htmlFor="address">Address *</Label>
-                <Input 
-                  id="address" 
+                <Input
+                  id="address"
                   placeholder="e.g., 941 Progress Ave, Scarborough, ON"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
                   required
                 />
+                {formErrors.address && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.address}</p>
+                )}
               </div>
-              
+
               <div>
                 <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
+                <Textarea
+                  id="description"
                   placeholder="Describe what makes this a good practice spot..."
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                 />
               </div>
@@ -115,14 +217,14 @@ const AddLocation = () => {
             <CardContent>
               <div className="grid gap-3">
                 {difficulties.map((diff) => (
-                  <div 
+                  <div
                     key={diff.level}
                     className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      selectedDifficulty === diff.level 
-                        ? 'border-primary bg-primary/5' 
+                      formData.difficulty === diff.level
+                        ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                     }`}
-                    onClick={() => setSelectedDifficulty(diff.level)}
+                    onClick={() => handleDifficultySelect(diff.level)}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-4 h-4 rounded-full ${diff.color}`}></div>
@@ -130,13 +232,16 @@ const AddLocation = () => {
                         <p className="font-medium">{diff.level}</p>
                         <p className="text-sm text-muted-foreground">{diff.description}</p>
                       </div>
-                      {selectedDifficulty === diff.level && (
+                      {formData.difficulty === diff.level && (
                         <Check className="w-5 h-5 text-primary" />
                       )}
                     </div>
                   </div>
                 ))}
               </div>
+              {formErrors.difficulty && (
+                <p className="text-sm text-destructive mt-2">{formErrors.difficulty}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -153,7 +258,7 @@ const AddLocation = () => {
                 {features.map((feature) => (
                   <Badge
                     key={feature}
-                    variant={selectedFeatures.includes(feature) ? "default" : "outline"}
+                    variant={formData.features.includes(feature) ? "default" : "outline"}
                     className="cursor-pointer justify-center p-2 text-center"
                     onClick={() => toggleFeature(feature)}
                   >
@@ -161,12 +266,12 @@ const AddLocation = () => {
                   </Badge>
                 ))}
               </div>
-              
-              {selectedFeatures.length > 0 && (
+
+              {formData.features.length > 0 && (
                 <div className="mt-4 p-3 bg-accent/10 rounded-lg">
                   <p className="text-sm font-medium mb-2">Selected features:</p>
                   <div className="flex flex-wrap gap-1">
-                    {selectedFeatures.map((feature) => (
+                    {formData.features.map((feature) => (
                       <Badge key={feature} variant="secondary" className="text-xs">
                         {feature}
                       </Badge>
@@ -198,26 +303,87 @@ const AddLocation = () => {
           <Card>
             <CardHeader>
               <CardTitle>Pinpoint Location</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Set exact coordinates for better accuracy (optional)
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="bg-accent/10 border border-border rounded-lg p-6 text-center">
-                <MapPin className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground mb-2">Tap to set exact location on map</p>
-                <Button variant="outline" type="button">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Set on Map
-                </Button>
-              </div>
+              {formData.coordinates ? (
+                <div className="space-y-3">
+                  <div className="bg-accent/10 border border-border rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="font-medium">Location Set</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Latitude: {formData.coordinates.latitude}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Longitude: {formData.coordinates.longitude}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setShowMapPicker(true)}
+                      className="flex-1"
+                    >
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Change Location
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, coordinates: undefined }))}
+                      className="flex-1"
+                    >
+                      Remove Location
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-accent/10 border border-border rounded-lg p-6 text-center">
+                  <MapPin className="w-12 h-12 mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground mb-4">
+                    Set exact coordinates for better accuracy
+                  </p>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setShowMapPicker(true)}
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Set on Map
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Submit */}
           <div className="flex gap-3">
-            <Button type="button" variant="outline" className="flex-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              disabled={isSubmitting}
+            >
               Save as Draft
             </Button>
-            <Button type="submit" className="flex-1">
-              Submit Location
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Location'
+              )}
             </Button>
           </div>
         </form>
@@ -235,6 +401,14 @@ const AddLocation = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Map Picker Modal */}
+      <MapPicker
+        isOpen={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        onLocationSelect={handleLocationSelect}
+        initialCoordinates={formData.coordinates}
+      />
     </div>
   );
 };

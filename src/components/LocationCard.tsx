@@ -2,30 +2,37 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, Clock, Car, Users, MessageSquare } from "lucide-react";
+import { PracticeLocation } from "@/lib/firebase";
+import { trackLocationView } from "@/lib/locationService";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
-interface LocationCardProps {
-  name: string;
-  address: string;
-  rating: number;
-  reviewCount: number;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  features: string[];
-  distance: string;
-  lastReview: string;
-  image?: string;
+interface LocationCardProps extends Omit<PracticeLocation, 'submittedAt' | 'updatedAt' | 'submittedBy' | 'isApproved'> {
+  distance?: string;
+  lastReview?: string;
 }
 
 const LocationCard = ({
+  id,
   name,
   address,
-  rating,
-  reviewCount,
+  rating = 0,
+  reviewCount = 0,
   difficulty,
   features,
-  distance,
-  lastReview,
-  image
+  distance = "Unknown",
+  lastReview = "Recently",
+  images
 }: LocationCardProps) => {
+  const { currentUser } = useAuth();
+  const image = images && images.length > 0 ? images[0] : undefined;
+
+  // Track location view when component mounts
+  useEffect(() => {
+    if (id) {
+      trackLocationView(id, currentUser?.uid);
+    }
+  }, [id, currentUser?.uid]);
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Beginner': return 'bg-success text-success-foreground';

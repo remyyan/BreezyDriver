@@ -1,42 +1,134 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Search, 
-  Filter, 
-  MapPin, 
+import { PracticeLocation, DifficultyLevel } from "@/lib/firebase";
+import { getLocations, getLocationsByDifficulty, searchLocations } from "@/lib/locationService";
+import {
+  Search,
+  Filter,
+  MapPin,
   Star,
   Sliders,
-  Navigation
+  Navigation,
+  Loader2
 } from "lucide-react";
 
 const Explore = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [locations, setLocations] = useState<PracticeLocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   const filters = [
-    { id: 'all', label: 'All Spots', count: 0 },
-    { id: 'beginner', label: '🟢 Beginner', count: 0 },
-    { id: 'intermediate', label: '🟡 Intermediate', count: 0 },
-    { id: 'advanced', label: '🔴 Advanced', count: 0 },
-    { id: 'parking', label: '🅿️ Parking', count: 0 },
-    { id: 'merging', label: '🔄 Merging', count: 0 },
-    { id: 'roundabout', label: '⭕ Roundabouts', count: 0 }
+    { id: 'all', label: 'All Spots', count: locations.length },
+    { id: 'beginner', label: '🟢 Beginner', count: locations.filter(l => l.difficulty === 'Beginner').length },
+    { id: 'intermediate', label: '🟡 Intermediate', count: locations.filter(l => l.difficulty === 'Intermediate').length },
+    { id: 'advanced', label: '🔴 Advanced', count: locations.filter(l => l.difficulty === 'Advanced').length },
+    { id: 'parking', label: '🅿️ Parking', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('parking'))).length },
+    { id: 'merging', label: '🔄 Merging', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('merging'))).length },
+    { id: 'roundabout', label: '⭕ Roundabouts', count: locations.filter(l => l.features.some(f => f.toLowerCase().includes('roundabout'))).length }
   ];
 
-  // Locations will be loaded from Firestore
-  const locations: any[] = [];
+  // Load locations on component mount
+  useEffect(() => {
+    async function fetchLocations() {
+      try {
+        setLoading(true);
+        const allLocations = await getLocations();
+        setLocations(allLocations);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load practice spots.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLocations();
+  }, [toast]);
 
-  const handleSearch = () => {
-    toast({
-      title: "Search Feature",
-      description: "Advanced search functionality coming soon!",
-    });
+  // Filter locations based on selected filter
+  const filteredLocations = locations.filter(location => {
+    if (selectedFilter === 'all') return true;
+    if (selectedFilter === 'beginner') return location.difficulty === 'Beginner';
+    if (selectedFilter === 'intermediate') return location.difficulty === 'Intermediate';
+    if (selectedFilter === 'advanced') return location.difficulty === 'Advanced';
+    if (selectedFilter === 'parking') return location.features.some(f => f.toLowerCase().includes('parking'));
+    if (selectedFilter === 'merging') return location.features.some(f => f.toLowerCase().includes('merging'));
+    if (selectedFilter === 'roundabout') return location.features.some(f => f.toLowerCase().includes('roundabout'));
+    return true;
+  });
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast({
+        title: "Search Query Required",
+        description: "Please enter a search term.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      const searchResults = await searchLocations(searchQuery);
+      setLocations(searchResults);
+      toast({
+        title: "Search Complete",
+        description: `Found ${searchResults.length} matching locations.`,
+      });
+    } catch (error) {
+      console.error('Error searching locations:', error);
+      toast({
+        title: "Search Failed",
+        description: "Failed to search locations. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleFilterChange = async (filterId: string) => {
+    setSelectedFilter(filterId);
+
+    if (filterId === 'all') {
+      // Reload all locations
+      try {
+        setLoading(true);
+        const allLocations = await getLocations();
+        setLocations(allLocations);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else if (['beginner', 'intermediate', 'advanced'].includes(filterId)) {
+      // Load by difficulty
+      try {
+        setLoading(true);
+        const difficultyMap: Record<string, DifficultyLevel> = {
+          'beginner': 'Beginner',
+          'intermediate': 'Intermediate',
+          'advanced': 'Advanced'
+        };
+        const difficultyLocations = await getLocationsByDifficulty(difficultyMap[filterId]);
+        setLocations(difficultyLocations);
+      } catch (error) {
+        console.error('Error fetching locations by difficulty:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const handleGetDirections = () => {
@@ -70,8 +162,12 @@ const Explore = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={handleSearch}>
-                <Search className="w-4 h-4" />
+              <Button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
               </Button>
               <Button variant="outline" onClick={() => toast({ title: "Filters", description: "Advanced filters coming soon!" })}>
                 <Sliders className="w-4 h-4" />
@@ -89,7 +185,7 @@ const Explore = () => {
                 variant={selectedFilter === filter.id ? "default" : "outline"}
                 size="sm"
                 className="whitespace-nowrap"
-                onClick={() => setSelectedFilter(filter.id)}
+                onClick={() => handleFilterChange(filter.id)}
               >
                 {filter.label}
                 <Badge variant="secondary" className="ml-2 text-xs">
@@ -130,9 +226,31 @@ const Explore = () => {
 
         {/* Location Results */}
         <div className="grid gap-4">
-          {locations.length > 0 ? (
+          {loading ? (
+            // Loading skeleton
+            Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden animate-pulse">
+                <div className="h-48 bg-muted"></div>
+                <CardHeader>
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-muted rounded w-full"></div>
+                    <div className="h-3 bg-muted rounded w-2/3"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : locations.length > 0 ? (
             locations.map((location, index) => (
-              <LocationCard key={index} {...location} />
+              <LocationCard
+                key={location.id || index}
+                {...location}
+                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now
+                lastReview={`${Math.floor(Math.random() * 30 + 1)} days ago`} // Mock last review
+              />
             ))
           ) : (
             <Card>
@@ -142,7 +260,7 @@ const Explore = () => {
                 <p className="text-muted-foreground mb-4">
                   Be the first to add practice locations in your area!
                 </p>
-                <Button onClick={() => toast({ title: "Add Location", description: "Feature coming soon!" })}>
+                <Button onClick={() => window.location.href = '/add-location'}>
                   Add First Location
                 </Button>
               </CardContent>
