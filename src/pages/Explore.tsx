@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { PracticeLocation, DifficultyLevel } from "@/lib/firebase";
 import { getLocations, getLocationsByDifficulty, searchLocations } from "@/lib/locationService";
 import { getCachedFeatureStats, FeatureStats } from "@/lib/statsService";
@@ -19,6 +20,7 @@ import {
 
 const Explore = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [locations, setLocations] = useState<PracticeLocation[]>([]);
@@ -147,10 +149,41 @@ const Explore = () => {
   };
 
   const handleGetDirections = () => {
-    toast({
-      title: "Navigation",
-      description: "GPS navigation integration coming soon!",
-    });
+    // Get user's current location and find nearest spot
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Find nearest location (simplified - could be improved with proper distance calculation)
+          if (filteredLocations.length > 0) {
+            const nearestLocation = filteredLocations[0]; // For now, just use first location
+            if (nearestLocation.coordinates) {
+              const url = `https://www.google.com/maps/dir/${latitude},${longitude}/${nearestLocation.coordinates.latitude},${nearestLocation.coordinates.longitude}`;
+              window.open(url, '_blank');
+            }
+          } else {
+            toast({
+              title: "No Locations",
+              description: "No practice spots found to navigate to.",
+              variant: "destructive"
+            });
+          }
+        },
+        () => {
+          toast({
+            title: "Location Access Denied",
+            description: "Please enable location access to find nearest spots.",
+            variant: "destructive"
+          });
+        }
+      );
+    } else {
+      toast({
+        title: "Geolocation Not Supported",
+        description: "Your browser doesn't support location services.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -184,7 +217,7 @@ const Explore = () => {
                   <Search className="w-4 h-4" />
                 )}
               </Button>
-              <Button variant="outline" onClick={() => toast({ title: "Filters", description: "Advanced filters coming soon!" })}>
+              <Button variant="outline" onClick={() => navigate('/explore')}>
                 <Sliders className="w-4 h-4" />
               </Button>
             </div>
@@ -213,7 +246,11 @@ const Explore = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <Button variant="outline" className="h-auto py-4 flex flex-col">
+          <Button
+            variant="outline"
+            className="h-auto py-4 flex flex-col"
+            onClick={() => navigate('/map')}
+          >
             <MapPin className="w-6 h-6 mb-2 text-primary" />
             <span className="font-medium">View on Map</span>
             <span className="text-xs text-muted-foreground">Interactive map view</span>
@@ -274,7 +311,7 @@ const Explore = () => {
                 <p className="text-muted-foreground mb-4">
                   Be the first to add practice locations in your area!
                 </p>
-                <Button onClick={() => window.location.href = '/add-location'}>
+                <Button onClick={() => navigate('/add-location')}>
                   Add First Location
                 </Button>
               </CardContent>
@@ -285,7 +322,10 @@ const Explore = () => {
         {/* Load More - only show if there are locations */}
         {filteredLocations.length > 0 && (
           <div className="text-center mt-8">
-            <Button variant="outline" onClick={() => toast({ title: "Load More", description: "Loading more locations..." })}>
+            <Button variant="outline" onClick={() => {
+              // In a real app, this would load more results from Firebase with pagination
+              toast({ title: "Load More", description: "Loading more locations..." });
+            }}>
               Load More Results
             </Button>
           </div>

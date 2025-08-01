@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { MapPin, Filter, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PracticeLocation } from "@/lib/firebase";
@@ -10,6 +11,7 @@ import { getCachedAppStats, AppStats } from "@/lib/statsService";
 
 const LocationsShowcase = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [featuredLocations, setFeaturedLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [appStats, setAppStats] = useState<AppStats>({
@@ -45,17 +47,12 @@ const LocationsShowcase = () => {
   }, [toast]);
 
   const handleFilter = (filterName: string) => {
-    toast({
-      title: `Filter: ${filterName}`,
-      description: "Filtering feature coming soon!",
-    });
+    // Navigate to explore page with filter applied
+    navigate(`/explore?filter=${filterName.toLowerCase()}`);
   };
 
   const handleAddSpot = () => {
-    toast({
-      title: "Add Practice Spot",
-      description: "Feature coming soon! You'll be able to submit new locations.",
-    });
+    navigate('/add-location');
   };
 
   const handleViewAll = () => {
@@ -143,8 +140,7 @@ const LocationsShowcase = () => {
               <LocationCard
                 key={location.id || index}
                 {...location}
-                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now
-                lastReview={`${Math.floor(Math.random() * 30 + 1)} days ago`} // Mock last review
+                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now - would need geolocation API
               />
             ))
           ) : (

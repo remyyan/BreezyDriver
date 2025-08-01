@@ -197,10 +197,26 @@ const MapView = () => {
   };
 
   const handleAddLocation = () => {
-    toast({
-      title: "Add New Practice Spot",
-      description: "Click anywhere on the map to add a new practice location!",
-    });
+    navigate('/add-location');
+  };
+
+  const handleGetDirections = (location: PracticeLocation) => {
+    if (!location.coordinates) {
+      toast({
+        title: "No Coordinates",
+        description: "Location coordinates are not available.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { latitude, longitude } = location.coordinates;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    window.open(url, '_blank');
+  };
+
+  const handleViewDetails = (location: PracticeLocation) => {
+    navigate(`/location/${location.id}`);
   };
 
   useEffect(() => {
@@ -320,11 +336,20 @@ const MapView = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleGetDirections(selectedLocation)}
+                    >
                       <Navigation className="w-4 h-4 mr-2" />
                       Get Directions
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleViewDetails(selectedLocation)}
+                    >
                       View Details
                     </Button>
                   </div>

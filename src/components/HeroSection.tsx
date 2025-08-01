@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { MapPin, Star, Users, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-practice-street.jpg";
 
 const HeroSection = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleExploreSpots = () => {
     toast({
@@ -17,10 +19,7 @@ const HeroSection = () => {
   };
 
   const handleAddLocation = () => {
-    toast({
-      title: "Add Location Feature",
-      description: "Coming soon! You'll be able to submit new practice spots.",
-    });
+    navigate('/add-location');
   };
 
   return (
