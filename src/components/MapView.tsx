@@ -6,17 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Star, Navigation, Filter, Plus } from "lucide-react";
-
-interface PracticeLocation {
-  id: string;
-  name: string;
-  coordinates: [number, number];
-  rating: number;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  features: string[];
-  reviewCount: number;
-}
+import { MapPin, Star, Navigation, Filter, Plus, X, Clock, Car, ArrowLeft } from "lucide-react";
+import { PracticeLocation } from "@/lib/firebase";
+import { getLocations, getLocationById } from "@/lib/locationService";
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -24,10 +17,55 @@ const MapView = () => {
   const mapboxToken = 'pk.eyJ1IjoicmVteXlhbiIsImEiOiJjbWRqZjBwc2UwaW5uMmpxNzJmNmgyMmc0In0.wdhkYSWw_Sd4X2GmzMJtLw';
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<PracticeLocation | null>(null);
+  const [practiceLocations, setPracticeLocations] = useState<PracticeLocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Practice locations will be loaded from Firestore
-  const practiceLocations: PracticeLocation[] = [];
+  // Get location ID from URL parameters
+  const locationId = searchParams.get('location');
+
+  // Load locations from Firebase
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        setLoading(true);
+        const locations = await getLocations();
+        setPracticeLocations(locations);
+
+        // If a specific location is requested, find and select it
+        if (locationId) {
+          const targetLocation = locations.find(loc => loc.id === locationId);
+          if (targetLocation) {
+            setSelectedLocation(targetLocation);
+          } else {
+            // Try to fetch the specific location if not in the list
+            try {
+              const specificLocation = await getLocationById(locationId);
+              if (specificLocation) {
+                setSelectedLocation(specificLocation);
+                setPracticeLocations(prev => [...prev, specificLocation]);
+              }
+            } catch (error) {
+              console.error('Error fetching specific location:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load practice locations.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLocations();
+  }, [locationId, toast]);
 
   const initializeMap = () => {
     if (!mapContainer.current || isMapLoaded) return;
@@ -66,9 +104,12 @@ const MapView = () => {
         
         // Add practice locations as markers
         practiceLocations.forEach((location) => {
+          // Skip locations without coordinates
+          if (!location.coordinates) return;
+
           const el = document.createElement('div');
           el.className = 'marker';
-          
+
           // Add difficulty color coding
           const difficultyColors = {
             'Beginner': '#22c55e',
@@ -109,16 +150,27 @@ const MapView = () => {
           el.addEventListener('click', () => {
             setSelectedLocation(location);
             map.current?.flyTo({
-              center: location.coordinates,
+              center: [location.coordinates!.longitude, location.coordinates!.latitude],
               zoom: 15,
               duration: 1500
             });
           });
 
           new mapboxgl.Marker(el)
-            .setLngLat(location.coordinates)
+            .setLngLat([location.coordinates.longitude, location.coordinates.latitude])
             .addTo(map.current!);
         });
+
+        // If a specific location is selected, focus on it
+        if (selectedLocation && selectedLocation.coordinates) {
+          setTimeout(() => {
+            map.current?.flyTo({
+              center: [selectedLocation.coordinates!.longitude, selectedLocation.coordinates!.latitude],
+              zoom: 15,
+              duration: 2000
+            });
+          }, 1000);
+        }
 
         toast({
           title: "Map Loaded Successfully",
@@ -152,21 +204,37 @@ const MapView = () => {
   };
 
   useEffect(() => {
-    initializeMap();
-    
+    if (!loading && practiceLocations.length >= 0) {
+      initializeMap();
+    }
+
     return () => {
       map.current?.remove();
     };
-  }, []);
+  }, [loading, practiceLocations, selectedLocation]);
 
   return (
     <div className="h-screen flex flex-col bg-background pb-16">
       {/* Header */}
       <div className="bg-white border-b border-border p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Practice Locations Map</h1>
-            <p className="text-sm text-muted-foreground">Discover safe spots to practice driving</p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="p-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-primary">
+                {selectedLocation ? selectedLocation.name : 'Practice Locations Map'}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {selectedLocation ? selectedLocation.address : 'Discover safe spots to practice driving'}
+              </p>
+            </div>
           </div>
           <Button onClick={handleAddLocation} size="sm">
             <Plus className="w-4 h-4 mr-2" />

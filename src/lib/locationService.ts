@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -102,11 +103,28 @@ export const getLocations = async (): Promise<PracticeLocation[]> => {
       where('isApproved', '==', true),
       orderBy('submittedAt', 'desc')
     );
-    
+
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(convertDocToLocation);
   } catch (error) {
     console.error('Error fetching locations:', error);
+    throw error;
+  }
+};
+
+// Get a specific location by ID
+export const getLocationById = async (locationId: string): Promise<PracticeLocation | null> => {
+  try {
+    const locationRef = doc(db, LOCATIONS_COLLECTION, locationId);
+    const locationSnap = await getDoc(locationRef);
+
+    if (locationSnap.exists()) {
+      return convertDocToLocation(locationSnap);
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching location by ID:', error);
     throw error;
   }
 };

@@ -6,6 +6,7 @@ import { PracticeLocation } from "@/lib/firebase";
 import { trackLocationView } from "@/lib/locationService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface LocationCardProps extends Omit<PracticeLocation, 'submittedAt' | 'updatedAt' | 'submittedBy' | 'isApproved'> {
   distance?: string;
@@ -25,6 +26,7 @@ const LocationCard = ({
   images
 }: LocationCardProps) => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const image = images && images.length > 0 ? images[0] : undefined;
 
   // Track location view when component mounts
@@ -132,9 +134,13 @@ const LocationCard = ({
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <Button className="flex-1" size="sm">
+          <Button
+            className="flex-1"
+            size="sm"
+            onClick={() => navigate(`/map?location=${id}`)}
+          >
             <MapPin className="w-4 h-4 mr-1" />
-            View Details
+            View on Map
           </Button>
           <Button variant="outline" size="sm">
             <MessageSquare className="w-4 h-4" />
