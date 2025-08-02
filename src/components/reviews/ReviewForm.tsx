@@ -19,7 +19,7 @@ interface ReviewFormProps {
 }
 
 const ReviewForm = ({ locationId, locationName, onReviewAdded, onCancel }: ReviewFormProps) => {
-  const { currentUser } = useAuth();
+  const { currentUser, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ReviewFormData>({
@@ -27,6 +27,35 @@ const ReviewForm = ({ locationId, locationName, onReviewAdded, onCancel }: Revie
     comment: '',
     isVerified: false
   });
+
+  // If user is not logged in, show sign-in prompt
+  if (!currentUser) {
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="w-5 h-5" />
+            Sign In to Write a Review
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            You need to be signed in to write a review for {locationName}.
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={signInWithGoogle} className="flex-1">
+              Sign In with Google
+            </Button>
+            {onCancel && (
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

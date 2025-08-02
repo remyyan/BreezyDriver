@@ -2,11 +2,13 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Star, Users, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import heroImage from "@/assets/hero-practice-street.jpg";
 
 const HeroSection = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { currentUser, signInWithGoogle } = useAuth();
 
   const handleExploreSpots = () => {
     toast({
@@ -19,6 +21,15 @@ const HeroSection = () => {
   };
 
   const handleAddLocation = () => {
+    if (!currentUser) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to add a practice location.",
+        variant: "destructive"
+      });
+      signInWithGoogle();
+      return;
+    }
     navigate('/add-location');
   };
 

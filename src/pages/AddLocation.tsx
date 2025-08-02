@@ -22,7 +22,7 @@ import {
 
 const AddLocation = () => {
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { currentUser, signInWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [formData, setFormData] = useState<LocationFormData>({
@@ -33,6 +33,32 @@ const AddLocation = () => {
     features: []
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // If user is not logged in, show sign-in prompt
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-background pt-16 pb-20">
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-md mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <MapPin className="w-6 h-6" />
+                Sign In Required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-center space-y-4">
+              <p className="text-muted-foreground">
+                You need to be signed in to submit a new practice location.
+              </p>
+              <Button onClick={signInWithGoogle} className="w-full">
+                Sign In with Google
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const features = [
     'Large parking spaces',

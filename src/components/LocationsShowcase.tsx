@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import LocationCard from "@/components/LocationCard";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { MapPin, Filter, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PracticeLocation } from "@/lib/firebase";
@@ -12,6 +13,7 @@ import { getCachedAppStats, AppStats } from "@/lib/statsService";
 const LocationsShowcase = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { currentUser, signInWithGoogle } = useAuth();
   const [featuredLocations, setFeaturedLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [appStats, setAppStats] = useState<AppStats>({
@@ -52,6 +54,15 @@ const LocationsShowcase = () => {
   };
 
   const handleAddSpot = () => {
+    if (!currentUser) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to add a practice location.",
+        variant: "destructive"
+      });
+      signInWithGoogle();
+      return;
+    }
     navigate('/add-location');
   };
 

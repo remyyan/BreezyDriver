@@ -23,6 +23,17 @@ const MobileNavigation = () => {
   const { currentUser } = useAuth();
 
   const handleNavigation = (label: string) => {
+    // Check authentication for protected routes (only Add Spot, Profile has built-in auth)
+    if (label === "Add Spot" && !currentUser) {
+      toast({
+        title: "Sign In Required",
+        description: `Please sign in to access ${label}.`,
+        variant: "destructive"
+      });
+      setShowAuthModal(true);
+      return;
+    }
+
     switch (label) {
       case "Home":
         navigate("/");

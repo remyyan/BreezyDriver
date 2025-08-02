@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Star, Navigation, Filter, Plus, X, Clock, Car, ArrowLeft } from "lucide-react";
+import { MapPin, Star, Navigation, Filter, X, Clock, Car } from "lucide-react";
 import { PracticeLocation } from "@/lib/firebase";
 import { getLocations, getLocationById } from "@/lib/locationService";
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -196,9 +196,7 @@ const MapView = () => {
     }
   };
 
-  const handleAddLocation = () => {
-    navigate('/add-location');
-  };
+
 
   const handleGetDirections = (location: PracticeLocation) => {
     if (!location.coordinates) {
@@ -233,29 +231,15 @@ const MapView = () => {
     <div className="h-screen flex flex-col bg-background pb-16">
       {/* Header */}
       <div className="bg-white border-b border-border p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="p-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-primary">
-                {selectedLocation ? selectedLocation.name : 'Practice Locations Map'}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {selectedLocation ? selectedLocation.address : 'Discover safe spots to practice driving'}
-              </p>
-            </div>
+        <div className="flex items-center justify-center">
+          <div>
+            <h1 className="text-2xl font-bold text-primary text-center">
+              {selectedLocation ? selectedLocation.name : 'Practice Locations Map'}
+            </h1>
+            <p className="text-sm text-muted-foreground text-center">
+              {selectedLocation ? selectedLocation.address : 'Discover safe spots to practice driving'}
+            </p>
           </div>
-          <Button onClick={handleAddLocation} size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Spot
-          </Button>
         </div>
 
         {/* Loading State */}
