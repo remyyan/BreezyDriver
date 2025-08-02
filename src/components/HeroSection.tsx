@@ -68,7 +68,7 @@ const HeroSection = () => {
           </p>
 
           {/* Feature Highlights */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
             <div className="flex flex-col items-center">
               <MapPin className="w-8 h-8 mb-2 text-accent" />
               <span className="text-sm font-medium">Find Nearby Spots</span>
@@ -81,10 +81,10 @@ const HeroSection = () => {
               <Users className="w-8 h-8 mb-2 text-accent" />
               <span className="text-sm font-medium">User Reviews</span>
             </div>
-            <div className="flex flex-col items-center">
+            {/* <div className="flex flex-col items-center">
               <Shield className="w-8 h-8 mb-2 text-accent" />
               <span className="text-sm font-medium">Safety First</span>
-            </div>
+            </div> */}
           </div>
 
           {/* CTA Buttons */}
@@ -108,14 +108,14 @@ const HeroSection = () => {
           </div>
 
           {/* Trust indicators */}
-          <div className="mt-12 pt-8 border-t border-white/20">
+          {/* <div className="mt-12 pt-8 border-t border-white/20">
             <p className="text-sm opacity-75 mb-4">Trusted by new drivers across Ontario</p>
             <div className="flex justify-center items-center space-x-8 text-sm opacity-60">
               <span>🚗 1,200+ Practice Spots</span>
               <span>⭐ 4.8/5 Average Rating</span>
               <span>👥 5,000+ Community Members</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

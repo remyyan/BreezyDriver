@@ -68,11 +68,21 @@ const MapView = () => {
   }, [locationId, toast]);
 
   const initializeMap = () => {
-    if (!mapContainer.current || isMapLoaded) return;
+    if (!mapContainer.current || isMapLoaded || map.current) return;
 
     try {
       mapboxgl.accessToken = mapboxToken;
-      
+
+      // Ensure any existing map is cleaned up first
+      if (map.current) {
+        try {
+          map.current.remove();
+        } catch (error) {
+          console.warn('Error removing existing map:', error);
+        }
+        map.current = null;
+      }
+
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/light-v11',
@@ -217,15 +227,39 @@ const MapView = () => {
     navigate(`/location/${location.id}`);
   };
 
+  // Initialize map only once
   useEffect(() => {
-    if (!loading && practiceLocations.length >= 0) {
+    if (!loading && practiceLocations.length >= 0 && !map.current) {
       initializeMap();
     }
+  }, [loading, practiceLocations]);
 
+  // Handle selected location changes separately
+  useEffect(() => {
+    if (map.current && isMapLoaded && selectedLocation) {
+      // Fly to selected location
+      map.current.flyTo({
+        center: [selectedLocation.coordinates.longitude, selectedLocation.coordinates.latitude],
+        zoom: 16,
+        duration: 1000
+      });
+    }
+  }, [selectedLocation, isMapLoaded]);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      map.current?.remove();
+      if (map.current) {
+        try {
+          map.current.remove();
+        } catch (error) {
+          console.warn('Error removing map:', error);
+        } finally {
+          map.current = null;
+        }
+      }
     };
-  }, [loading, practiceLocations, selectedLocation]);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-background pb-16">

@@ -94,12 +94,12 @@ const FeatureSection = () => {
               Join thousands of new drivers who've found their perfect practice spots through BreezyDriver. 
               Safe, supportive, and always improving.
             </p>
-            <div className="flex flex-wrap justify-center gap-4 text-sm">
+            {/* <div className="flex flex-wrap justify-center gap-4 text-sm">
               <span className="bg-white/20 px-4 py-2 rounded-full">🎯 Beginner Friendly</span>
               <span className="bg-white/20 px-4 py-2 rounded-full">🛡️ Safety Verified</span>
               <span className="bg-white/20 px-4 py-2 rounded-full">📍 Ontario Wide</span>
               <span className="bg-white/20 px-4 py-2 rounded-full">💬 Community Support</span>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
