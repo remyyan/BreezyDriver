@@ -151,7 +151,6 @@ const LocationsShowcase = () => {
               <LocationCard
                 key={location.id || index}
                 {...location}
-                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now - would need geolocation API
               />
             ))
           ) : (

@@ -69,13 +69,15 @@ const LocationCard = ({
           </div>
         )}
         
-        {/* Distance Badge */}
-        <div className="absolute top-3 left-3">
-          <Badge variant="secondary" className="bg-white/90 text-foreground">
-            <MapPin className="w-3 h-3 mr-1" />
-            {distance}
-          </Badge>
-        </div>
+        {/* Distance Badge - only show if distance is provided and not "Unknown" */}
+        {distance && distance !== "Unknown" && (
+          <div className="absolute top-3 left-3">
+            <Badge variant="secondary" className="bg-white/90 text-foreground">
+              <MapPin className="w-3 h-3 mr-1" />
+              {distance}
+            </Badge>
+          </div>
+        )}
 
         {/* Difficulty Badge */}
         <div className="absolute top-3 right-3">

@@ -13,7 +13,6 @@ import {
   Search,
   Filter,
   MapPin,
-  Sliders,
   Navigation,
   Loader2
 } from "lucide-react";
@@ -24,6 +23,7 @@ const Explore = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [locations, setLocations] = useState<PracticeLocation[]>([]);
+  const [allLocations, setAllLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [featureStats, setFeatureStats] = useState<FeatureStats>({});
@@ -52,11 +52,12 @@ const Explore = () => {
     async function fetchData() {
       try {
         setLoading(true);
-        const [allLocations, stats] = await Promise.all([
+        const [fetchedLocations, stats] = await Promise.all([
           getLocations(),
           getCachedFeatureStats()
         ]);
-        setLocations(allLocations);
+        setAllLocations(fetchedLocations);
+        setLocations(fetchedLocations);
         setFeatureStats(stats);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -85,35 +86,37 @@ const Explore = () => {
     return true;
   });
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      toast({
-        title: "Search Query Required",
-        description: "Please enter a search term.",
-        variant: "destructive"
-      });
-      return;
-    }
+  // Real-time search effect
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        // If search is empty, show all locations
+        setLocations(allLocations);
+        return;
+      }
 
-    try {
-      setIsSearching(true);
-      const searchResults = await searchLocations(searchQuery);
-      setLocations(searchResults);
-      toast({
-        title: "Search Complete",
-        description: `Found ${searchResults.length} matching locations.`,
-      });
-    } catch (error) {
-      console.error('Error searching locations:', error);
-      toast({
-        title: "Search Failed",
-        description: "Failed to search locations. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
+      try {
+        setIsSearching(true);
+        const searchResults = await searchLocations(searchQuery);
+        setLocations(searchResults);
+      } catch (error) {
+        console.error('Search error:', error);
+        toast({
+          title: "Search Error",
+          description: "Failed to search locations. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    // Debounce search to avoid too many API calls
+    const timeoutId = setTimeout(performSearch, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, allLocations, toast]);
+
+
 
   const handleFilterChange = async (filterId: string) => {
     setSelectedFilter(filterId);
@@ -188,7 +191,7 @@ const Explore = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20"> {/* pt-16 */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">Explore Practice Spots</h1>
@@ -200,26 +203,19 @@ const Explore = () => {
         {/* Search Bar */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by location, features, or difficulty..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button onClick={handleSearch} disabled={isSearching}>
-                {isSearching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/explore')}>
-                <Sliders className="w-4 h-4" />
-              </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, address, tags, or features..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -232,11 +228,11 @@ const Explore = () => {
                 key={filter.id}
                 variant={selectedFilter === filter.id ? "default" : "outline"}
                 size="sm"
-                className="whitespace-nowrap"
+                className="whitespace-nowrap text-xs px-2 py-1 h-7"
                 onClick={() => handleFilterChange(filter.id)}
               >
                 {filter.label}
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 h-4 text-[10px]">
                   {filter.count}
                 </Badge>
               </Button>
@@ -277,10 +273,10 @@ const Explore = () => {
         </div>
 
         {/* Location Results */}
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {loading ? (
             // Loading skeleton
-            Array.from({ length: 3 }).map((_, index) => (
+            Array.from({ length: 6 }).map((_, index) => (
               <Card key={index} className="overflow-hidden animate-pulse">
                 <div className="h-48 bg-muted"></div>
                 <CardHeader>
@@ -300,22 +296,23 @@ const Explore = () => {
               <LocationCard
                 key={location.id || index}
                 {...location}
-                distance={`${(Math.random() * 10 + 1).toFixed(1)} km`} // Mock distance for now
               />
             ))
           ) : (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Search className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No practice spots found</h3>
-                <p className="text-muted-foreground mb-4">
-                  Be the first to add practice locations in your area!
-                </p>
-                <Button onClick={() => navigate('/add-location')}>
-                  Add First Location
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="col-span-full">
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Search className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No practice spots found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Be the first to add practice locations in your area!
+                  </p>
+                  <Button onClick={() => navigate('/add-location')}>
+                    Add First Location
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
 

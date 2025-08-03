@@ -33,6 +33,7 @@ const AddLocation = () => {
     features: []
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [customTag, setCustomTag] = useState('');
 
   // If user is not logged in, show sign-in prompt
   if (!currentUser) {
@@ -91,6 +92,23 @@ const AddLocation = () => {
       features: prev.features.includes(feature)
         ? prev.features.filter(f => f !== feature)
         : [...prev.features, feature]
+    }));
+  };
+
+  const addCustomTag = () => {
+    if (customTag.trim() && !formData.features.includes(customTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        features: [...prev.features, customTag.trim()]
+      }));
+      setCustomTag('');
+    }
+  };
+
+  const removeFeature = (feature: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.filter(f => f !== feature)
     }));
   };
 
@@ -293,16 +311,51 @@ const AddLocation = () => {
                 ))}
               </div>
 
+              {/* Custom Tag Input */}
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <Label htmlFor="customTag" className="text-sm font-medium mb-2 block">
+                  Add Custom Tag
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="customTag"
+                    placeholder="e.g., Night lighting, Security patrol..."
+                    value={customTag}
+                    onChange={(e) => setCustomTag(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addCustomTag}
+                    disabled={!customTag.trim()}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
               {formData.features.length > 0 && (
                 <div className="mt-4 p-3 bg-accent/10 rounded-lg">
                   <p className="text-sm font-medium mb-2">Selected features:</p>
                   <div className="flex flex-wrap gap-1">
                     {formData.features.map((feature) => (
-                      <Badge key={feature} variant="secondary" className="text-xs">
+                      <Badge
+                        key={feature}
+                        variant="secondary"
+                        className="text-xs cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                        onClick={() => removeFeature(feature)}
+                        title="Click to remove"
+                      >
                         {feature}
+                        <span className="ml-1">×</span>
                       </Badge>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Click on any tag to remove it
+                  </p>
                 </div>
               )}
             </CardContent>
