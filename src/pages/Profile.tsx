@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
+import ThemeSelector from "@/components/ThemeSelector";
 import { useState, useEffect } from "react";
 import { getUserContributionStats, UserContributionStats } from "@/lib/statsService";
 import {
@@ -73,7 +74,7 @@ const Profile = () => {
   if (!currentUser) {
     return (
       <>
-        <div className="min-h-screen bg-background pt-16 pb-20 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <Card className="w-full max-w-md mx-4">
             <CardContent className="pt-6 text-center">
               <User className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -102,7 +103,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-16 pb-20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Profile Header */}
         <Card className="mb-6">
@@ -249,6 +250,9 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Theme Selector */}
+        <ThemeSelector className="mb-6" />
 
         {/* Account Actions */}
         <Card>

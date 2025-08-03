@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { 
-  Home, 
-  MapPin, 
-  Plus, 
-  User, 
-  Search,
-  Menu,
-  X
+import {
+  Home,
+  MapPin,
+  Plus,
+  User,
+  Search
 } from "lucide-react";
 
 const MobileNavigation = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -58,19 +54,7 @@ const MobileNavigation = () => {
     }
   };
 
-  const handleMenuAction = (action: string) => {
-    setIsMenuOpen(false);
 
-    if (action === "Sign In") {
-      setShowAuthModal(true);
-      return;
-    }
-
-    toast({
-      title: action,
-      description: `${action} feature coming soon!`,
-    });
-  };
 
   const navItems = [
     { icon: Home, label: "Home", active: true },
@@ -150,7 +134,7 @@ const MobileNavigation = () => {
       </nav> */}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border">
         <div className="flex items-center justify-around px-2 py-2">
           {navItems.map((item, index) => {
             const IconComponent = item.icon;
