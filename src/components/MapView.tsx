@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Star, Navigation, Filter, X, Clock, Car } from "lucide-react";
-import { PracticeLocation } from "@/lib/firebase";
-import { getLocations, getLocationById } from "@/lib/locationService";
+import { Star, Navigation, Filter } from "lucide-react";
+import { PracticeLocation, DifficultyLevel } from "@/lib/firebase";
+import { getLocations, getLocationById, getLocationsByDifficulty } from "@/lib/locationService";
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const MapView = () => {
@@ -18,13 +17,92 @@ const MapView = () => {
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<PracticeLocation | null>(null);
   const [practiceLocations, setPracticeLocations] = useState<PracticeLocation[]>([]);
+  const [allLocations, setAllLocations] = useState<PracticeLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Get location ID from URL parameters
   const locationId = searchParams.get('location');
+
+  // Filter definitions
+  const filters = [
+    { id: 'all', label: 'All', icon: Filter },
+    { id: 'beginner', label: '🟢 Beginner' },
+    { id: 'intermediate', label: '🟡 Intermediate' },
+    { id: 'advanced', label: '🔴 Advanced' },
+    { id: 'parking', label: '🅿️ Parking' },
+    { id: 'merging', label: '🔄 Merging' },
+  ];
+
+  // Filter locations based on selected filter
+  const filteredLocations = practiceLocations.filter(location => {
+    if (selectedFilter === 'all') return true;
+    if (selectedFilter === 'beginner') return location.difficulty === 'Beginner';
+    if (selectedFilter === 'intermediate') return location.difficulty === 'Intermediate';
+    if (selectedFilter === 'advanced') return location.difficulty === 'Advanced';
+    if (selectedFilter === 'parking') return location.features.some(f => f.toLowerCase().includes('parking'));
+    if (selectedFilter === 'merging') return location.features.some(f => f.toLowerCase().includes('merging'));
+    return true;
+  });
+
+  // Handle filter changes
+  const handleFilterChange = async (filterId: string) => {
+    setSelectedFilter(filterId);
+
+    if (filterId === 'all') {
+      // Reload all locations
+      try {
+        setLoading(true);
+        const allLocations = await getLocations();
+        setPracticeLocations(allLocations);
+        setAllLocations(allLocations);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load locations.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    } else if (['beginner', 'intermediate', 'advanced'].includes(filterId)) {
+      // Load by difficulty
+      try {
+        setLoading(true);
+        const difficultyMap: Record<string, DifficultyLevel> = {
+          'beginner': 'Beginner',
+          'intermediate': 'Intermediate',
+          'advanced': 'Advanced'
+        };
+        const difficultyLocations = await getLocationsByDifficulty(difficultyMap[filterId]);
+        setPracticeLocations(difficultyLocations);
+      } catch (error) {
+        console.error('Error fetching locations by difficulty:', error);
+        toast({
+          title: "Error",
+          description: "Failed to filter locations.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // For feature-based filters, filter from all locations
+      if (allLocations.length === 0) {
+        try {
+          const locations = await getLocations();
+          setAllLocations(locations);
+          setPracticeLocations(locations);
+        } catch (error) {
+          console.error('Error loading locations:', error);
+        }
+      }
+    }
+  };
 
   // Load locations from Firebase
   useEffect(() => {
@@ -33,6 +111,7 @@ const MapView = () => {
         setLoading(true);
         const locations = await getLocations();
         setPracticeLocations(locations);
+        setAllLocations(locations);
 
         // If a specific location is requested, find and select it
         if (locationId) {
@@ -46,6 +125,7 @@ const MapView = () => {
               if (specificLocation) {
                 setSelectedLocation(specificLocation);
                 setPracticeLocations(prev => [...prev, specificLocation]);
+                setAllLocations(prev => [...prev, specificLocation]);
               }
             } catch (error) {
               console.error('Error fetching specific location:', error);
@@ -66,6 +146,79 @@ const MapView = () => {
 
     loadLocations();
   }, [locationId, toast]);
+
+  // Store markers for cleanup
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+
+  // Function to update map markers based on filtered locations
+  const updateMapMarkers = useCallback(() => {
+    if (!map.current) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Add filtered locations as markers
+    filteredLocations.forEach((location) => {
+      // Skip locations without coordinates
+      if (!location.coordinates) return;
+
+      const el = document.createElement('div');
+      el.className = 'marker';
+
+      // Add difficulty color coding
+      const difficultyColors = {
+        'Beginner': '#22c55e',
+        'Intermediate': '#eab308',
+        'Advanced': '#ef4444'
+      };
+
+      el.innerHTML = `
+        <div style="
+          width: 40px;
+          height: 40px;
+          background: ${difficultyColors[location.difficulty]};
+          border: 3px solid white;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        " class="marker-inner">
+          <svg width="20" height="20" fill="white">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      `;
+
+      const innerEl = el.querySelector('.marker-inner') as HTMLElement;
+
+      el.addEventListener('mouseenter', () => {
+        if (innerEl) innerEl.style.transform = 'scale(1.1)';
+      });
+
+      el.addEventListener('mouseleave', () => {
+        if (innerEl) innerEl.style.transform = 'scale(1)';
+      });
+
+      el.addEventListener('click', () => {
+        setSelectedLocation(location);
+        map.current?.flyTo({
+          center: [location.coordinates!.longitude, location.coordinates!.latitude],
+          zoom: 15,
+          duration: 1500
+        });
+      });
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([location.coordinates.longitude, location.coordinates.latitude])
+        .addTo(map.current!);
+
+      markersRef.current.push(marker);
+    });
+  }, [filteredLocations, setSelectedLocation]);
 
   const initializeMap = () => {
     if (!mapContainer.current || isMapLoaded || map.current) return;
@@ -111,65 +264,7 @@ const MapView = () => {
 
       map.current.on('load', () => {
         setIsMapLoaded(true);
-        
-        // Add practice locations as markers
-        practiceLocations.forEach((location) => {
-          // Skip locations without coordinates
-          if (!location.coordinates) return;
-
-          const el = document.createElement('div');
-          el.className = 'marker';
-
-          // Add difficulty color coding
-          const difficultyColors = {
-            'Beginner': '#22c55e',
-            'Intermediate': '#eab308',
-            'Advanced': '#ef4444'
-          };
-          
-          el.innerHTML = `
-            <div style="
-              width: 40px;
-              height: 40px;
-              background: ${difficultyColors[location.difficulty]};
-              border: 3px solid white;
-              border-radius: 50%;
-              cursor: pointer;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-              transition: all 0.2s ease;
-            " class="marker-inner">
-              <svg width="20" height="20" fill="white">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            </div>
-          `;
-          
-          const innerEl = el.querySelector('.marker-inner') as HTMLElement;
-          
-          el.addEventListener('mouseenter', () => {
-            if (innerEl) innerEl.style.transform = 'scale(1.1)';
-          });
-          
-          el.addEventListener('mouseleave', () => {
-            if (innerEl) innerEl.style.transform = 'scale(1)';
-          });
-          
-          el.addEventListener('click', () => {
-            setSelectedLocation(location);
-            map.current?.flyTo({
-              center: [location.coordinates!.longitude, location.coordinates!.latitude],
-              zoom: 15,
-              duration: 1500
-            });
-          });
-
-          new mapboxgl.Marker(el)
-            .setLngLat([location.coordinates.longitude, location.coordinates.latitude])
-            .addTo(map.current!);
-        });
+        updateMapMarkers();
 
         // If a specific location is selected, focus on it
         if (selectedLocation && selectedLocation.coordinates) {
@@ -234,6 +329,13 @@ const MapView = () => {
     }
   }, [loading, practiceLocations]);
 
+  // Update markers when filtered locations change
+  useEffect(() => {
+    if (map.current && isMapLoaded) {
+      updateMapMarkers();
+    }
+  }, [updateMapMarkers, isMapLoaded]);
+
   // Handle selected location changes separately
   useEffect(() => {
     if (map.current && isMapLoaded && selectedLocation) {
@@ -288,25 +390,18 @@ const MapView = () => {
 
         {/* Filter Bar */}
         <div className="flex gap-2 mt-4 overflow-x-auto">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            All
-          </Button>
-          <Button variant="outline" size="sm">
-            🟢 Beginner
-          </Button>
-          <Button variant="outline" size="sm">
-            🟡 Intermediate
-          </Button>
-          <Button variant="outline" size="sm">
-            🔴 Advanced
-          </Button>
-          <Button variant="outline" size="sm">
-            🅿️ Parking
-          </Button>
-          <Button variant="outline" size="sm">
-            🔄 Merging
-          </Button>
+          {filters.map((filter) => (
+            <Button
+              key={filter.id}
+              variant={selectedFilter === filter.id ? "default" : "outline"}
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => handleFilterChange(filter.id)}
+            >
+              {filter.icon && <filter.icon className="w-4 h-4 mr-2" />}
+              {filter.label}
+            </Button>
+          ))}
         </div>
       </div>
 
