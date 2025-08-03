@@ -5,7 +5,9 @@ import {
   where,
   orderBy,
   limit,
-  getCountFromServer
+  getCountFromServer,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getRecentReviews } from './reviewService';
@@ -25,6 +27,16 @@ export interface UserContributionStats {
   spotsAdded: number;
   reviewsWritten: number;
   bookmarkedSpots: number;
+}
+
+export interface UserActivity {
+  id: string;
+  type: 'location_added' | 'review_written' | 'location_bookmarked';
+  title: string;
+  description: string;
+  date: Date;
+  locationId?: string;
+  locationName?: string;
 }
 
 // Get overall app statistics
@@ -49,7 +61,7 @@ export const getAppStats = async (): Promise<AppStats> => {
     const recentLocationsQuery = query(
       collection(db, 'locations'),
       where('isApproved', '==', true),
-      where('createdAt', '>=', sevenDaysAgo)
+      where('submittedAt', '>=', sevenDaysAgo)
     );
     const recentLocationsSnapshot = await getDocs(recentLocationsQuery);
     const recentSubmissions = recentLocationsSnapshot.size;
@@ -118,7 +130,7 @@ export const getUserContributionStats = async (userId: string): Promise<UserCont
     // Get spots added by user
     const userLocationsQuery = query(
       collection(db, 'locations'),
-      where('createdBy', '==', userId)
+      where('submittedBy', '==', userId)
     );
     const userLocationsSnapshot = await getCountFromServer(userLocationsQuery);
     const spotsAdded = userLocationsSnapshot.data().count;
@@ -151,6 +163,126 @@ export const getUserContributionStats = async (userId: string): Promise<UserCont
       reviewsWritten: 0,
       bookmarkedSpots: 0
     };
+  }
+};
+
+// Get user's recent activity
+export const getUserRecentActivity = async (userId: string, limitCount: number = 5): Promise<UserActivity[]> => {
+  try {
+    const activities: UserActivity[] = [];
+
+    // Get user's recent locations
+    const userLocationsQuery = query(
+      collection(db, 'locations'),
+      where('submittedBy', '==', userId),
+      orderBy('submittedAt', 'desc'),
+      limit(limitCount)
+    );
+    const userLocationsSnapshot = await getDocs(userLocationsQuery);
+
+    userLocationsSnapshot.forEach(doc => {
+      const data = doc.data();
+      activities.push({
+        id: doc.id,
+        type: 'location_added',
+        title: 'Added a practice spot',
+        description: data.name,
+        date: data.submittedAt?.toDate() || new Date(),
+        locationId: doc.id,
+        locationName: data.name
+      });
+    });
+
+    // Get user's recent reviews
+    const userReviewsQuery = query(
+      collection(db, 'reviews'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+    const userReviewsSnapshot = await getDocs(userReviewsQuery);
+
+    for (const reviewDoc of userReviewsSnapshot.docs) {
+      const reviewData = reviewDoc.data();
+
+      // Get location name for the review
+      try {
+        const locationDocRef = doc(db, 'locations', reviewData.locationId);
+        const locationDoc = await getDoc(locationDocRef);
+
+        const locationName = locationDoc.exists() ? locationDoc.data()?.name || 'Unknown Location' : 'Unknown Location';
+
+        activities.push({
+          id: reviewDoc.id,
+          type: 'review_written',
+          title: 'Wrote a review',
+          description: locationName,
+          date: reviewData.createdAt?.toDate() || new Date(),
+          locationId: reviewData.locationId,
+          locationName
+        });
+      } catch (error) {
+        console.error('Error fetching location for review:', error);
+        activities.push({
+          id: reviewDoc.id,
+          type: 'review_written',
+          title: 'Wrote a review',
+          description: 'Practice Location',
+          date: reviewData.createdAt?.toDate() || new Date(),
+          locationId: reviewData.locationId
+        });
+      }
+    }
+
+    // Get user's recent bookmarks
+    const userBookmarksQuery = query(
+      collection(db, 'bookmarks'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+    const userBookmarksSnapshot = await getDocs(userBookmarksQuery);
+
+    for (const bookmarkDoc of userBookmarksSnapshot.docs) {
+      const bookmarkData = bookmarkDoc.data();
+
+      // Get location name for the bookmark
+      try {
+        const locationDocRef = doc(db, 'locations', bookmarkData.locationId);
+        const locationDoc = await getDoc(locationDocRef);
+
+        const locationName = locationDoc.exists() ? locationDoc.data()?.name || 'Unknown Location' : 'Unknown Location';
+
+        activities.push({
+          id: bookmarkDoc.id,
+          type: 'location_bookmarked',
+          title: 'Bookmarked a spot',
+          description: locationName,
+          date: bookmarkData.createdAt?.toDate() || new Date(),
+          locationId: bookmarkData.locationId,
+          locationName
+        });
+      } catch (error) {
+        console.error('Error fetching location for bookmark:', error);
+        activities.push({
+          id: bookmarkDoc.id,
+          type: 'location_bookmarked',
+          title: 'Bookmarked a spot',
+          description: 'Practice Location',
+          date: bookmarkData.createdAt?.toDate() || new Date(),
+          locationId: bookmarkData.locationId
+        });
+      }
+    }
+
+    // Sort all activities by date (most recent first) and limit
+    return activities
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, limitCount);
+
+  } catch (error) {
+    console.error('Error fetching user recent activity:', error);
+    return [];
   }
 };
 

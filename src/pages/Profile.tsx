@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import ThemeSelector from "@/components/ThemeSelector";
 import { useState, useEffect } from "react";
-import { getUserContributionStats, UserContributionStats } from "@/lib/statsService";
+import { getUserContributionStats, UserContributionStats, getUserRecentActivity, UserActivity } from "@/lib/statsService";
 import {
   User,
   MapPin,
@@ -16,8 +16,12 @@ import {
   Calendar,
   Settings,
   LogOut,
-  Camera
+  Camera,
+  Loader2,
+  MessageSquare,
+  Bookmark
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -28,11 +32,14 @@ const Profile = () => {
     reviewsWritten: 0,
     bookmarkedSpots: 0
   });
+  const [recentActivity, setRecentActivity] = useState<UserActivity[]>([]);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
 
   // Load user stats when user is available
   useEffect(() => {
     if (currentUser) {
       loadUserStats();
+      loadRecentActivity();
     }
   }, [currentUser]);
 
@@ -44,6 +51,30 @@ const Profile = () => {
       setUserStats(stats);
     } catch (error) {
       console.error('Error loading user stats:', error);
+      toast({
+        title: "Error Loading Stats",
+        description: "Unable to load your contribution statistics.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    if (!currentUser) return;
+
+    try {
+      setIsLoadingActivity(true);
+      const activity = await getUserRecentActivity(currentUser.uid, 5);
+      setRecentActivity(activity);
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+      toast({
+        title: "Error Loading Activity",
+        description: "Unable to load your recent activity.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingActivity(false);
     }
   };
 
@@ -195,13 +226,47 @@ const Profile = () => {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No recent activity yet</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Start by adding practice spots or writing reviews!
-              </p>
-            </div>
+            {isLoadingActivity ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground">Loading activity...</p>
+              </div>
+            ) : recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                    <div className="flex-shrink-0 mt-1">
+                      {activity.type === 'location_added' && (
+                        <MapPin className="w-4 h-4 text-primary" />
+                      )}
+                      {activity.type === 'review_written' && (
+                        <MessageSquare className="w-4 h-4 text-yellow-500" />
+                      )}
+                      {activity.type === 'location_bookmarked' && (
+                        <Bookmark className="w-4 h-4 text-accent" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {activity.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDistanceToNow(activity.date, { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">No recent activity yet</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Start by adding practice spots or writing reviews!
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

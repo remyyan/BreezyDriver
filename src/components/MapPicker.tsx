@@ -245,9 +245,9 @@ const MapPicker = ({ isOpen, onClose, onLocationSelect, initialCoordinates }: Ma
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground text-center">
+          {/* <p className="text-xs text-muted-foreground text-center">
             Note: This is a simplified map picker. In production, this would integrate with Google Maps or similar service for accurate location selection.
-          </p>
+          </p> */}
         </CardContent>
       </Card>
     </div>
