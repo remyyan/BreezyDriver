@@ -93,7 +93,7 @@ const themes = [
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('breezy-driver-theme');
-    return (saved as Theme) || 'light';
+    return (saved as Theme) || 'neon';
   });
 
   const setTheme = (newTheme: Theme) => {
