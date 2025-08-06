@@ -351,3 +351,74 @@ export const getRecentReviews = async (limitCount: number = 10): Promise<Locatio
     throw error;
   }
 };
+
+// Admin functions for review management
+
+// Update review (admin only)
+export const updateReview = async (
+  reviewId: string,
+  updates: Partial<LocationReview>
+): Promise<void> => {
+  try {
+    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    const updateData: any = { ...updates };
+
+    if (updates.updatedAt) {
+      updateData.updatedAt = Timestamp.fromDate(updates.updatedAt);
+    } else {
+      updateData.updatedAt = Timestamp.fromDate(new Date());
+    }
+
+    await updateDoc(reviewRef, updateData);
+
+    // If rating was updated, recalculate location rating
+    if (updates.rating !== undefined && updates.locationId) {
+      await updateLocationRating(updates.locationId);
+    }
+  } catch (error) {
+    console.error('Error updating review:', error);
+    throw error;
+  }
+};
+
+// Delete review (admin only)
+export const deleteReview = async (reviewId: string): Promise<void> => {
+  try {
+    // Get review data before deletion to update location rating
+    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    const reviewDoc = await getDoc(reviewRef);
+
+    if (reviewDoc.exists()) {
+      const reviewData = reviewDoc.data();
+      const locationId = reviewData.locationId;
+
+      // Delete the review
+      await deleteDoc(reviewRef);
+
+      // Update location rating after deletion
+      if (locationId) {
+        await updateLocationRating(locationId);
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    throw error;
+  }
+};
+
+// Get all reviews for admin management
+export const getAllReviews = async (limitCount: number = 50): Promise<LocationReview[]> => {
+  try {
+    const q = query(
+      collection(db, REVIEWS_COLLECTION),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(convertDocToReview);
+  } catch (error) {
+    console.error('Error fetching all reviews:', error);
+    throw error;
+  }
+};

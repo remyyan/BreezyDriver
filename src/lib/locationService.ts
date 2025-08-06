@@ -417,3 +417,21 @@ export const rejectLocation = async (
     throw error;
   }
 };
+
+// Get all approved locations for admin management
+export const getAllApprovedLocations = async (limitCount: number = 100): Promise<PracticeLocation[]> => {
+  try {
+    const q = query(
+      collection(db, LOCATIONS_COLLECTION),
+      where('isApproved', '==', true),
+      orderBy('submittedAt', 'desc'),
+      limit(limitCount)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(convertDocToLocation);
+  } catch (error) {
+    console.error('Error fetching all approved locations:', error);
+    throw error;
+  }
+};
