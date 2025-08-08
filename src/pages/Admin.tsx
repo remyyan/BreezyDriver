@@ -26,6 +26,9 @@ import {
   deleteReview
 } from "@/lib/reviewService";
 import { isUserAdmin } from "@/lib/adminService";
+import { seedDatabase, removeSeedData } from "@/lib/seedData";
+import { listPendingEditRequests, resolveEditRequest, rejectEditRequest, EditRequestDoc } from "@/lib/editRequestService";
+import { geocodeAddress } from "@/lib/geocodingService";
 import {
   MapPin,
   Clock,
@@ -39,7 +42,10 @@ import {
   Trash2,
   MessageSquare,
   Star,
-  Calendar
+  Calendar,
+  Database,
+  Trash,
+  Wrench
 } from "lucide-react";
 
 const Admin = () => {
@@ -50,6 +56,8 @@ const Admin = () => {
   const [allReviews, setAllReviews] = useState<LocationReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [editRequests, setEditRequests] = useState<EditRequestDoc[]>([]);
+
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [showRejectForm, setShowRejectForm] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
@@ -71,6 +79,9 @@ const Admin = () => {
     comment: ''
   });
 
+  // Seed data state
+  const [isSeeding, setIsSeeding] = useState(false);
+
   // Check if user is admin
   const isAdmin = isUserAdmin(currentUser?.email);
 
@@ -88,7 +99,8 @@ const Admin = () => {
       await Promise.all([
         loadPendingLocations(),
         loadApprovedLocations(),
-        loadAllReviews()
+        loadAllReviews(),
+        loadEditRequests()
       ]);
     } catch (error) {
       toast({
@@ -112,6 +124,15 @@ const Admin = () => {
 
   const loadApprovedLocations = async () => {
     try {
+  const loadEditRequests = async () => {
+    try {
+      const items = await listPendingEditRequests();
+      setEditRequests(items);
+    } catch (error) {
+      console.error('Error loading edit requests:', error);
+    }
+  };
+
       const locations = await getAllApprovedLocations();
       setApprovedLocations(locations);
     } catch (error) {
@@ -132,12 +153,12 @@ const Admin = () => {
     try {
       setProcessingId(locationId);
       await approveLocation(locationId, currentUser?.uid);
-      
+
       toast({
         title: "Location Approved",
         description: "The location has been approved and is now visible to users.",
       });
-      
+
       // Remove from pending list
       setPendingLocations(prev => prev.filter(loc => loc.id !== locationId));
     } catch (error) {
@@ -295,6 +316,53 @@ const Admin = () => {
   };
 
   const handleAddFeature = (feature: string) => {
+  const handleApplyEditRequest = async (req: EditRequestDoc) => {
+    try {
+      setProcessingId(req.id!);
+      const updates: any = {};
+      if (req.proposedAddress) updates.address = req.proposedAddress;
+      if (req.proposedCoordinates) updates.coordinates = req.proposedCoordinates;
+
+      // If address provided but no coords, geocode now
+      if (req.proposedAddress && !req.proposedCoordinates) {
+        const geo = await geocodeAddress(req.proposedAddress);
+        if (geo) updates.coordinates = geo;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        toast({ title: "Nothing to apply", description: "This request has no actionable changes.", variant: "destructive" });
+        return;
+      }
+
+      await updateLocation(req.locationId, updates);
+      await resolveEditRequest(req.id!);
+
+      toast({ title: "Edit Applied", description: `Updated ${req.locationName || 'location'}` });
+
+      // Refresh lists
+      await Promise.all([loadEditRequests(), loadApprovedLocations()]);
+    } catch (error) {
+      console.error('Error applying edit:', error);
+      toast({ title: "Error", description: "Failed to apply edit.", variant: "destructive" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectEditRequest = async (reqId: string) => {
+    try {
+      setProcessingId(reqId);
+      await rejectEditRequest(reqId);
+      toast({ title: "Request Rejected" });
+      await loadEditRequests();
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast({ title: "Error", description: "Failed to reject request.", variant: "destructive" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
     if (feature.trim() && !editLocationData.features.includes(feature.trim())) {
       setEditLocationData(prev => ({
         ...prev,
@@ -361,6 +429,92 @@ const Admin = () => {
     }
   };
 
+  const handleSeedDatabase = async () => {
+    if (!currentUser) return;
+
+    const confirmed = confirm(
+      '⚠️ DEVELOPMENT ONLY ⚠️\n\n' +
+      'This will add sample locations to your database.\n' +
+      'This should only be used for development/testing purposes.\n\n' +
+      'Are you sure you want to proceed?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsSeeding(true);
+
+      const result = await seedDatabase(currentUser.uid);
+
+      if (result.success) {
+        toast({
+          title: "Database Seeded Successfully! 🎉",
+          description: `Added ${result.stats.locationsAdded} locations`,
+        });
+
+        // Reload all data to show the new items
+        await loadAllData();
+      } else {
+        toast({
+          title: "Seeding Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to seed database",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleRemoveSeedData = async () => {
+    if (!currentUser) return;
+
+    const confirmed = confirm(
+      '⚠️ REMOVE SEED DATA ⚠️\n\n' +
+      'This will remove all locations you have added as an admin.\n' +
+      'This action cannot be undone.\n\n' +
+      'Are you sure you want to proceed?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsSeeding(true);
+
+      const result = await removeSeedData(currentUser.uid);
+
+      if (result.success) {
+        toast({
+          title: "Seed Data Removed Successfully! 🗑️",
+          description: `Removed ${result.stats.locationsRemoved} locations`,
+        });
+
+        // Reload all data to reflect the changes
+        await loadAllData();
+      } else {
+        toast({
+          title: "Removal Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove seed data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   // If user is not admin, show access denied
   if (!isAdmin) {
     return (
@@ -393,17 +547,53 @@ const Admin = () => {
     <div className="min-h-screen bg-background pt-16 pb-20">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
-          <p className="text-muted-foreground">
-            Manage locations, reviews, and moderate content
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
+              <p className="text-muted-foreground">
+                Manage locations, reviews, and moderate content
+              </p>
+            </div>
+            <div className="flex gap-3 items-center">
+              <Badge variant="outline" className="border-yellow-500 text-yellow-700 bg-yellow-50">
+                DEV ONLY
+              </Badge>
+              <Button
+                variant="outline"
+                onClick={handleSeedDatabase}
+                disabled={isSeeding}
+                className="border-orange-500 text-orange-700 hover:bg-orange-50"
+              >
+                {isSeeding ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Database className="w-4 h-4 mr-2" />
+                )}
+                {isSeeding ? 'Processing...' : 'Seed Sample Data'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRemoveSeedData}
+                disabled={isSeeding}
+                className="border-red-500 text-red-700 hover:bg-red-50"
+              >
+                {isSeeding ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash className="w-4 h-4 mr-2" />
+                )}
+                {isSeeding ? 'Processing...' : 'Remove Seed Data'}
+              </Button>
+            </div>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="pending">Pending Locations</TabsTrigger>
             <TabsTrigger value="locations">Manage Locations</TabsTrigger>
             <TabsTrigger value="reviews">Manage Reviews</TabsTrigger>
+            <TabsTrigger value="edits">Edit Requests</TabsTrigger>
           </TabsList>
 
           {/* Stats */}
@@ -450,7 +640,7 @@ const Admin = () => {
         {/* Pending Locations */}
         <div className="space-y-6">
           <h2 className="text-2xl font-semibold">Pending Locations</h2>
-          
+
           {pendingLocations.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
@@ -480,7 +670,7 @@ const Admin = () => {
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   {location.description && (
                     <div>
@@ -488,13 +678,13 @@ const Admin = () => {
                       <p className="text-sm text-muted-foreground">{location.description}</p>
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-medium mb-1">Difficulty</h4>
                       <Badge variant="secondary">{location.difficulty}</Badge>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium mb-1">Features</h4>
                       <div className="flex flex-wrap gap-1">
@@ -506,7 +696,7 @@ const Admin = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {location.coordinates && (
                     <div>
                       <h4 className="font-medium mb-1">Coordinates</h4>
@@ -515,19 +705,19 @@ const Admin = () => {
                       </p>
                     </div>
                   )}
-                  
+
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <User className="w-4 h-4" />
                     <span>Submitted by: {location.submittedBy || 'Anonymous'}</span>
                     <Clock className="w-4 h-4 ml-4" />
                     <span>
-                      {location.submittedAt instanceof Date 
+                      {location.submittedAt instanceof Date
                         ? location.submittedAt.toLocaleDateString()
                         : 'Unknown date'
                       }
                     </span>
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex gap-3 pt-4">
                     <Button
@@ -542,7 +732,7 @@ const Admin = () => {
                       )}
                       Approve
                     </Button>
-                    
+
                     <Button
                       variant="destructive"
                       onClick={() => setShowRejectForm(location.id!)}
@@ -553,7 +743,7 @@ const Admin = () => {
                       Reject
                     </Button>
                   </div>
-                  
+
                   {/* Rejection Form */}
                   {showRejectForm === location.id && (
                     <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
@@ -776,6 +966,83 @@ const Admin = () => {
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       handleAddFeature(e.currentTarget.value);
+
+          <TabsContent value="edits" className="space-y-6">
+            <h2 className="text-2xl font-semibold">Edit Requests</h2>
+
+            {editRequests.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <Wrench className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No pending edit requests</h3>
+                  <p className="text-muted-foreground">
+                    Users can suggest corrections from the location details page.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              editRequests.map((req) => (
+                <Card key={req.id} className="border-amber-200">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{req.locationName || 'Location'}</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">Request from {req.userName || req.userEmail || 'User'}</p>
+                      </div>
+                      <Badge variant="outline" className="border-amber-500 text-amber-700">Pending</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {req.currentAddress && (
+                      <div className="text-sm">
+                        <span className="font-medium">Current address:</span> {req.currentAddress}
+                      </div>
+                    )}
+                    {req.proposedAddress && (
+                      <div className="text-sm">
+                        <span className="font-medium">Proposed address:</span> {req.proposedAddress}
+                      </div>
+                    )}
+                    {req.proposedCoordinates && (
+                      <div className="text-sm">
+                        <span className="font-medium">Proposed pin:</span> {req.proposedCoordinates.latitude.toFixed(6)}, {req.proposedCoordinates.longitude.toFixed(6)}
+                      </div>
+                    )}
+                    {req.message && (
+                      <div className="text-sm text-muted-foreground">
+                        “{req.message}”
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApplyEditRequest(req)}
+                        disabled={processingId === req.id}
+                      >
+                        {processingId === req.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Apply Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleRejectEditRequest(req.id!)}
+                        disabled={processingId === req.id}
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
                                       e.currentTarget.value = '';
                                     }
                                   }}

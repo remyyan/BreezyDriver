@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db, PracticeLocation, LocationFormData, LocationStats, DifficultyLevel } from './firebase';
 import { trackEvent } from './analyticsService';
+import { geocodeAddress } from './geocodingService';
 import { updateUserStats } from './reviewService';
 
 const LOCATIONS_COLLECTION = 'locations';
@@ -57,11 +58,22 @@ export const addLocation = async (
       throw new Error('Difficulty level is required');
     }
 
+    // Auto-geocode if coordinates missing
+    let coordinates = locationData.coordinates;
+    if (!coordinates) {
+      try {
+        const geo = await geocodeAddress(locationData.address);
+        if (geo) coordinates = geo;
+      } catch (e) {
+        console.warn('Geocoding failed, proceeding without coordinates');
+      }
+    }
+
     const newLocation: Omit<PracticeLocation, 'id'> = {
       name: locationData.name.trim(),
       address: locationData.address.trim(),
       description: locationData.description?.trim() || '',
-      coordinates: locationData.coordinates,
+      coordinates,
       difficulty: locationData.difficulty,
       features: locationData.features,
       rating: 0,

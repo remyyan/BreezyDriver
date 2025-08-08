@@ -19,23 +19,39 @@ import {
   BookmarkCheck,
   Share2,
   Car,
-  Clock,
-  Users,
-  Shield,
-  Loader2,
-  ExternalLink
+  Loader2
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { submitEditRequest } from "@/lib/editRequestService";
+import { geocodeAddress } from "@/lib/geocodingService";
+import { Edit3 } from "lucide-react";
+import MapPicker from "@/components/MapPicker";
+import { LocationCoordinates } from "@/lib/firebase";
+
+
 
 const LocationDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  
+
   const [location, setLocation] = useState<PracticeLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
+
+
+  // Suggest Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [proposedAddress, setProposedAddress] = useState("");
+  const [proposedCoords, setProposedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [editMessage, setEditMessage] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -53,7 +69,7 @@ const LocationDetails = () => {
     try {
       setLoading(true);
       const locationData = await getLocationById(locationId);
-      
+
       if (!locationData) {
         toast({
           title: "Location Not Found",
@@ -65,7 +81,7 @@ const LocationDetails = () => {
       }
 
       setLocation(locationData);
-      
+
       // Track view
       if (currentUser) {
         await trackLocationView(locationId, currentUser.uid);
@@ -85,7 +101,7 @@ const LocationDetails = () => {
 
   const checkBookmarkStatus = async () => {
     if (!currentUser || !location?.id) return;
-    
+
     try {
       const bookmarked = await isLocationBookmarked(currentUser.uid, location.id);
       setIsBookmarked(bookmarked);
@@ -106,7 +122,7 @@ const LocationDetails = () => {
 
     try {
       setBookmarkLoading(true);
-      
+
       if (isBookmarked) {
         await removeBookmark(currentUser.uid, location.id);
         setIsBookmarked(false);
@@ -183,6 +199,52 @@ const LocationDetails = () => {
     }
   };
 
+  const tryGeocode = async () => {
+    if (!proposedAddress.trim()) return;
+    try {
+      setGeocoding(true);
+      const geo = await geocodeAddress(proposedAddress);
+      if (geo) setProposedCoords(geo);
+      else {
+        toast({ title: "Address Not Found", description: "Please try a more specific address.", variant: "destructive" });
+        setProposedCoords(null);
+      }
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const submitEdit = async () => {
+    if (!location?.id) return;
+    if (!currentUser) {
+      toast({ title: "Sign In Required", description: "Please sign in to suggest an edit.", variant: "destructive" });
+      return;
+    }
+    if (!proposedAddress.trim() && !proposedCoords && !editMessage.trim()) {
+      toast({ title: "Nothing to submit", description: "Please provide a new address, a pin update, or a short message.", variant: "destructive" });
+      return;
+    }
+    try {
+      setSubmittingEdit(true);
+      await submitEditRequest(
+        location.id,
+        { proposedAddress: proposedAddress.trim() || undefined, proposedCoordinates: proposedCoords || undefined, message: editMessage.trim() || "" },
+        { id: currentUser.uid, name: currentUser.displayName || undefined, email: currentUser.email || undefined },
+        { locationName: location.name, currentAddress: location.address }
+      );
+      toast({ title: "Edit Request Sent", description: "Thanks! Our team will review it soon." });
+      setEditOpen(false);
+      setProposedAddress("");
+      setProposedCoords(null);
+      setEditMessage("");
+      setShowMapPicker(false);
+    } catch (error) {
+      console.error('Error submitting edit request:', error);
+      toast({ title: "Error", description: "Failed to submit edit request.", variant: "destructive" });
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
   if (loading) {
     return (
       <div className="min-h-screen bg-background pt-16 pb-20 flex items-center justify-center">
@@ -216,9 +278,9 @@ const LocationDetails = () => {
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate(-1)}
             className="p-2"
           >
@@ -238,8 +300,8 @@ const LocationDetails = () => {
             <Card>
               <div className="relative h-64 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-t-lg overflow-hidden">
                 {location.images && location.images.length > 0 ? (
-                  <img 
-                    src={location.images[0]} 
+                  <img
+                    src={location.images[0]}
                     alt={location.name}
                     className="w-full h-full object-cover"
                   />
@@ -286,8 +348,8 @@ const LocationDetails = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Rating</span>
                   <div className="flex items-center gap-2">
-                    <RatingDisplay 
-                      rating={location.rating || 0} 
+                    <RatingDisplay
+                      rating={location.rating || 0}
                       size="sm"
                     />
                     <span className="text-xs text-muted-foreground">
@@ -309,6 +371,90 @@ const LocationDetails = () => {
                 <Separator />
 
                 {/* Features */}
+
+					<Separator />
+
+					{/* Corrections */}
+					<div className="space-y-2">
+					  <span className="text-sm font-medium mb-2 block">Think the pin or address is wrong?</span>
+					  <Dialog open={editOpen} onOpenChange={setEditOpen}>
+					    <DialogTrigger asChild>
+					      <Button variant="outline" className="w-full">
+					        <Edit3 className="w-4 h-4 mr-2" />
+					        Suggest an Edit
+					      </Button>
+					    </DialogTrigger>
+					    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+					      <DialogHeader>
+					        <DialogTitle>Suggest an Edit</DialogTitle>
+					      </DialogHeader>
+					      <div className="space-y-4">
+					        <div>
+					          <label className="text-sm font-medium">Proposed Address</label>
+					          <div className="flex gap-2 mt-2">
+					            <Input
+					              placeholder="Enter the correct address"
+					              value={proposedAddress}
+					              onChange={(e) => setProposedAddress(e.target.value)}
+					            />
+					            <Button type="button" onClick={tryGeocode} disabled={geocoding}>
+					              {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pin from Address'}
+					            </Button>
+					          </div>
+					          {!!proposedCoords && (
+					            <p className="text-xs text-muted-foreground mt-2">
+					              Suggested pin: {proposedCoords.latitude.toFixed(6)}, {proposedCoords.longitude.toFixed(6)}
+					            </p>
+					          )}
+					        </div>
+
+					        <div>
+					          <div className="flex items-center justify-between mb-2">
+					            <label className="text-sm font-medium">Pin Location</label>
+					            <Button
+					              type="button"
+					              variant="outline"
+					              size="sm"
+					              onClick={() => setShowMapPicker(!showMapPicker)}
+					            >
+					              {showMapPicker ? 'Hide Map' : 'Show Map'}
+					            </Button>
+					          </div>
+					          {showMapPicker && (
+					            <div className="border rounded-lg overflow-hidden h-[300px]">
+					              <MapPicker
+					                isOpen={showMapPicker}
+					                onClose={() => setShowMapPicker(false)}
+					                initialCoordinates={proposedCoords || location?.coordinates || { latitude: 43.6532, longitude: -79.3832 }}
+					                onLocationSelect={(coords: LocationCoordinates) => setProposedCoords(coords)}
+					              />
+					            </div>
+					          )}
+					        </div>
+
+					        <div>
+					          <label className="text-sm font-medium">Message (optional)</label>
+					          <Textarea
+					            placeholder="Describe what should be corrected (e.g., pin is across the street, use the eastbound on-ramp entrance)."
+					            value={editMessage}
+					            onChange={(e) => setEditMessage(e.target.value)}
+					            rows={4}
+					          />
+					        </div>
+					        <div className="flex gap-2">
+					          <Button className="flex-1" onClick={submitEdit} disabled={submittingEdit}>
+					            {submittingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+					            Submit Request
+					          </Button>
+					          <Button variant="outline" className="flex-1" onClick={() => setEditOpen(false)}>
+					            Cancel
+					          </Button>
+					        </div>
+					      </div>
+					    </DialogContent>
+					  </Dialog>
+					</div>
+
                 <div>
                   <span className="text-sm font-medium mb-2 block">Features</span>
                   <div className="flex flex-wrap gap-1">
@@ -324,7 +470,7 @@ const LocationDetails = () => {
 
             {/* Action Buttons */}
             <div className="space-y-3">
-              <Button 
+              <Button
                 onClick={handleGetDirections}
                 className="w-full"
                 size="lg"
@@ -333,7 +479,7 @@ const LocationDetails = () => {
                 Get Directions
               </Button>
 
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => navigate(`/map?location=${location.id}`)}
                 className="w-full"
