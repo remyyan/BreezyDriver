@@ -13,13 +13,33 @@ import {
 import { db } from './firebase';
 
 export const listPendingEditRequests = async (): Promise<EditRequestDoc[]> => {
-  const q = query(
-    collection(db, EDIT_REQUESTS_COLLECTION),
-    where('status', '==', 'pending'),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditRequestDoc[];
+  try {
+    // First try to get all documents to check if collection exists
+    const collectionRef = collection(db, EDIT_REQUESTS_COLLECTION);
+    const allSnapshot = await getDocs(collectionRef);
+
+    if (allSnapshot.empty) {
+      console.log('Edit requests collection is empty, returning empty array');
+      return [];
+    }
+
+    // If collection exists, use the filtered query (without orderBy to avoid index requirement)
+    const q = query(
+      collectionRef,
+      where('status', '==', 'pending')
+    );
+    const snapshot = await getDocs(q);
+    // Sort in memory instead of in query
+    const docs = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditRequestDoc[];
+    return docs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch (error: any) {
+    // If collection doesn't exist or index isn't ready, return empty array
+    if (error.code === 'failed-precondition' || error.code === 'not-found') {
+      console.log('Edit requests collection not ready yet, returning empty array');
+      return [];
+    }
+    throw error;
+  }
 };
 
 export const resolveEditRequest = async (requestId: string): Promise<void> => {

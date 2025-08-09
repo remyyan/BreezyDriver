@@ -16,10 +16,10 @@ const Header = () => {
 
         {/* Location Badge - Centered */}
         <div className="flex justify-center">
-          <Badge variant="outline" className="text-xs">
+          {/* <Badge variant="outline" className="text-xs">
             <MapPin className="w-3 h-3 mr-1" />
             Toronto, ON
-          </Badge>
+          </Badge> */}
         </div>
 
         {/* Theme Toggle */}

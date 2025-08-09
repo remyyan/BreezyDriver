@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { PracticeLocation, LocationReview } from "@/lib/firebase";
@@ -26,7 +25,6 @@ import {
   deleteReview
 } from "@/lib/reviewService";
 import { isUserAdmin } from "@/lib/adminService";
-import { seedDatabase, removeSeedData } from "@/lib/seedData";
 import { listPendingEditRequests, resolveEditRequest, rejectEditRequest, EditRequestDoc } from "@/lib/editRequestService";
 import { geocodeAddress } from "@/lib/geocodingService";
 import {
@@ -35,7 +33,6 @@ import {
   User,
   CheckCircle,
   XCircle,
-
   Loader2,
   Shield,
   Edit,
@@ -43,8 +40,6 @@ import {
   MessageSquare,
   Star,
   Calendar,
-  Database,
-  Trash,
   Wrench
 } from "lucide-react";
 
@@ -54,10 +49,9 @@ const Admin = () => {
   const [pendingLocations, setPendingLocations] = useState<PracticeLocation[]>([]);
   const [approvedLocations, setApprovedLocations] = useState<PracticeLocation[]>([]);
   const [allReviews, setAllReviews] = useState<LocationReview[]>([]);
+  const [editRequests, setEditRequests] = useState<EditRequestDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [editRequests, setEditRequests] = useState<EditRequestDoc[]>([]);
-
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [showRejectForm, setShowRejectForm] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
@@ -78,9 +72,6 @@ const Admin = () => {
     rating: 5,
     comment: ''
   });
-
-  // Seed data state
-  const [isSeeding, setIsSeeding] = useState(false);
 
   // Check if user is admin
   const isAdmin = isUserAdmin(currentUser?.email);
@@ -122,17 +113,21 @@ const Admin = () => {
     }
   };
 
-  const loadApprovedLocations = async () => {
-    try {
   const loadEditRequests = async () => {
     try {
+      console.log('Loading edit requests...');
       const items = await listPendingEditRequests();
+      console.log('Edit requests loaded:', items);
       setEditRequests(items);
     } catch (error) {
       console.error('Error loading edit requests:', error);
+      // Set empty array on error to prevent blocking other data loading
+      setEditRequests([]);
     }
   };
 
+  const loadApprovedLocations = async () => {
+    try {
       const locations = await getAllApprovedLocations();
       setApprovedLocations(locations);
     } catch (error) {
@@ -261,29 +256,19 @@ const Admin = () => {
     }
   };
 
-  const handleEditLocation = (location: PracticeLocation) => {
-    setEditingLocation(location);
-    setEditLocationData({
-      name: location.name,
-      address: location.address,
-      description: location.description || '',
-      difficulty: location.difficulty,
-      features: [...location.features]
-    });
-  };
-
   const handleUpdateLocation = async () => {
     if (!editingLocation) return;
 
     try {
-      setProcessingId(editingLocation.id!);
+      setProcessingId(editingLocation.id);
 
       const updates = {
         name: editLocationData.name,
         address: editLocationData.address,
         description: editLocationData.description,
         difficulty: editLocationData.difficulty,
-        features: editLocationData.features
+        features: editLocationData.features,
+        updatedAt: new Date()
       };
 
       await updateLocation(editingLocation.id!, updates);
@@ -315,7 +300,6 @@ const Admin = () => {
     }
   };
 
-  const handleAddFeature = (feature: string) => {
   const handleApplyEditRequest = async (req: EditRequestDoc) => {
     try {
       setProcessingId(req.id!);
@@ -363,6 +347,18 @@ const Admin = () => {
     }
   };
 
+  const handleEditLocation = (location: PracticeLocation) => {
+    setEditingLocation(location);
+    setEditLocationData({
+      name: location.name,
+      address: location.address,
+      description: location.description || '',
+      difficulty: location.difficulty,
+      features: [...location.features]
+    });
+  };
+
+  const handleAddFeature = (feature: string) => {
     if (feature.trim() && !editLocationData.features.includes(feature.trim())) {
       setEditLocationData(prev => ({
         ...prev,
@@ -429,92 +425,6 @@ const Admin = () => {
     }
   };
 
-  const handleSeedDatabase = async () => {
-    if (!currentUser) return;
-
-    const confirmed = confirm(
-      '⚠️ DEVELOPMENT ONLY ⚠️\n\n' +
-      'This will add sample locations to your database.\n' +
-      'This should only be used for development/testing purposes.\n\n' +
-      'Are you sure you want to proceed?'
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setIsSeeding(true);
-
-      const result = await seedDatabase(currentUser.uid);
-
-      if (result.success) {
-        toast({
-          title: "Database Seeded Successfully! 🎉",
-          description: `Added ${result.stats.locationsAdded} locations`,
-        });
-
-        // Reload all data to show the new items
-        await loadAllData();
-      } else {
-        toast({
-          title: "Seeding Failed",
-          description: result.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to seed database",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
-  const handleRemoveSeedData = async () => {
-    if (!currentUser) return;
-
-    const confirmed = confirm(
-      '⚠️ REMOVE SEED DATA ⚠️\n\n' +
-      'This will remove all locations you have added as an admin.\n' +
-      'This action cannot be undone.\n\n' +
-      'Are you sure you want to proceed?'
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setIsSeeding(true);
-
-      const result = await removeSeedData(currentUser.uid);
-
-      if (result.success) {
-        toast({
-          title: "Seed Data Removed Successfully! 🗑️",
-          description: `Removed ${result.stats.locationsRemoved} locations`,
-        });
-
-        // Reload all data to reflect the changes
-        await loadAllData();
-      } else {
-        toast({
-          title: "Removal Failed",
-          description: result.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove seed data",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   // If user is not admin, show access denied
   if (!isAdmin) {
     return (
@@ -547,45 +457,10 @@ const Admin = () => {
     <div className="min-h-screen bg-background pt-16 pb-20">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
-              <p className="text-muted-foreground">
-                Manage locations, reviews, and moderate content
-              </p>
-            </div>
-            <div className="flex gap-3 items-center">
-              <Badge variant="outline" className="border-yellow-500 text-yellow-700 bg-yellow-50">
-                DEV ONLY
-              </Badge>
-              <Button
-                variant="outline"
-                onClick={handleSeedDatabase}
-                disabled={isSeeding}
-                className="border-orange-500 text-orange-700 hover:bg-orange-50"
-              >
-                {isSeeding ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Database className="w-4 h-4 mr-2" />
-                )}
-                {isSeeding ? 'Processing...' : 'Seed Sample Data'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleRemoveSeedData}
-                disabled={isSeeding}
-                className="border-red-500 text-red-700 hover:bg-red-50"
-              >
-                {isSeeding ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash className="w-4 h-4 mr-2" />
-                )}
-                {isSeeding ? 'Processing...' : 'Remove Seed Data'}
-              </Button>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
+          <p className="text-muted-foreground">
+            Manage locations, reviews, and moderate content
+          </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -597,7 +472,7 @@ const Admin = () => {
           </TabsList>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2">
@@ -629,6 +504,18 @@ const Admin = () => {
                   <div>
                     <p className="text-2xl font-bold">{allReviews.length}</p>
                     <p className="text-sm text-muted-foreground">Total Reviews</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <p className="text-2xl font-bold">{editRequests.length}</p>
+                    <p className="text-sm text-muted-foreground">Edit Requests</p>
                   </div>
                 </div>
               </CardContent>
@@ -788,185 +675,6 @@ const Admin = () => {
         </div>
           </TabsContent>
 
-          <TabsContent value="locations" className="space-y-6">
-            <h2 className="text-2xl font-semibold">Manage Approved Locations</h2>
-
-            {approvedLocations.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Approved Locations</h3>
-                  <p className="text-muted-foreground">
-                    No approved locations found.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              approvedLocations.map((location) => (
-                <Card key={location.id} className="border-green-200">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <MapPin className="w-5 h-5" />
-                          {location.name}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {location.address}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="border-green-500 text-green-700">
-                          Approved
-                        </Badge>
-                        <Badge variant="secondary">{location.difficulty}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    {location.description && (
-                      <div>
-                        <h4 className="font-medium mb-1">Description</h4>
-                        <p className="text-sm text-muted-foreground">{location.description}</p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-1">Rating</h4>
-                        <div className="flex items-center gap-2">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm">
-                            {location.rating?.toFixed(1) || 'No ratings'}
-                            {location.reviewCount ? ` (${location.reviewCount} reviews)` : ''}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium mb-1">Features</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {location.features.slice(0, 3).map((feature, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {feature}
-                            </Badge>
-                          ))}
-                          {location.features.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{location.features.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="w-4 h-4" />
-                      <span>Submitted by: {location.submittedBy || 'Anonymous'}</span>
-                      <Calendar className="w-4 h-4 ml-4" />
-                      <span>
-                        {location.submittedAt instanceof Date
-                          ? location.submittedAt.toLocaleDateString()
-                          : 'Unknown date'
-                        }
-                      </span>
-                    </div>
-
-                    {/* Admin Actions */}
-                    <div className="flex gap-3 pt-4">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditLocation(location)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Edit Location</DialogTitle>
-                          </DialogHeader>
-
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="edit-name">Name</Label>
-                              <Input
-                                id="edit-name"
-                                value={editLocationData.name}
-                                onChange={(e) => setEditLocationData(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="Location name"
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="edit-address">Address</Label>
-                              <Input
-                                id="edit-address"
-                                value={editLocationData.address}
-                                onChange={(e) => setEditLocationData(prev => ({ ...prev, address: e.target.value }))}
-                                placeholder="Location address"
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="edit-description">Description</Label>
-                              <Textarea
-                                id="edit-description"
-                                value={editLocationData.description}
-                                onChange={(e) => setEditLocationData(prev => ({ ...prev, description: e.target.value }))}
-                                placeholder="Location description"
-                                rows={3}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="edit-difficulty">Difficulty</Label>
-                              <div className="mt-2">
-                                {['Beginner', 'Intermediate', 'Advanced'].map((diff) => (
-                                  <label key={diff} className="flex items-center space-x-2 mb-2">
-                                    <input
-                                      type="radio"
-                                      name="difficulty"
-                                      value={diff}
-                                      checked={editLocationData.difficulty === diff}
-                                      onChange={(e) => setEditLocationData(prev => ({
-                                        ...prev,
-                                        difficulty: e.target.value as 'Beginner' | 'Intermediate' | 'Advanced'
-                                      }))}
-                                      className="text-primary"
-                                    />
-                                    <span className="text-sm">{diff}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <Label>Features</Label>
-                              <div className="flex flex-wrap gap-2 mt-2 mb-2">
-                                {editLocationData.features.map((feature, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {feature}
-                                    <button
-                                      onClick={() => handleRemoveFeature(feature)}
-                                      className="ml-2 text-red-500 hover:text-red-700"
-                                    >
-                                      ×
-                                    </button>
-                                  </Badge>
-                                ))}
-                              </div>
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="Add a feature"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleAddFeature(e.currentTarget.value);
-
           <TabsContent value="edits" className="space-y-6">
             <h2 className="text-2xl font-semibold">Edit Requests</h2>
 
@@ -1010,7 +718,7 @@ const Admin = () => {
                     )}
                     {req.message && (
                       <div className="text-sm text-muted-foreground">
-                        “{req.message}”
+                        "{req.message}"
                       </div>
                     )}
 
@@ -1043,241 +751,14 @@ const Admin = () => {
             )}
           </TabsContent>
 
-                                      e.currentTarget.value = '';
-                                    }
-                                  }}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                    if (input) {
-                                      handleAddFeature(input.value);
-                                      input.value = '';
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                              <Button
-                                onClick={handleUpdateLocation}
-                                disabled={processingId === editingLocation?.id}
-                                className="flex-1"
-                              >
-                                {processingId === editingLocation?.id ? (
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                )}
-                                Update Location
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => setEditingLocation(null)}
-                                className="flex-1"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteLocation(location.id!, location.name)}
-                        disabled={processingId === location.id}
-                      >
-                        {processingId === location.id ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4 mr-2" />
-                        )}
-                        Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+          <TabsContent value="locations" className="space-y-6">
+            <h2 className="text-2xl font-semibold">Manage Approved Locations</h2>
+            <p className="text-muted-foreground">Placeholder for locations management</p>
           </TabsContent>
 
           <TabsContent value="reviews" className="space-y-6">
             <h2 className="text-2xl font-semibold">Manage Reviews</h2>
-
-            {allReviews.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Reviews</h3>
-                  <p className="text-muted-foreground">
-                    No reviews found.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              allReviews.map((review) => (
-                <Card key={review.id} className="border-blue-200">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <MessageSquare className="w-5 h-5" />
-                          Review by {review.userName}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Location ID: {review.locationId}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium">{review.rating}/5</span>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h4 className="font-medium mb-1">Comment</h4>
-                      <p className="text-sm text-muted-foreground">{review.comment}</p>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        <span>{review.userEmail}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          {review.createdAt instanceof Date
-                            ? review.createdAt.toLocaleDateString()
-                            : 'Unknown date'
-                          }
-                        </span>
-                      </div>
-                      {review.helpful && review.helpful > 0 && (
-                        <div className="flex items-center gap-1">
-                          <span>👍 {review.helpful} helpful</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Admin Actions */}
-                    <div className="flex gap-3 pt-4">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditReview(review)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Edit Review</DialogTitle>
-                          </DialogHeader>
-
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="edit-rating">Rating</Label>
-                              <div className="flex items-center gap-2 mt-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setEditReviewData(prev => ({ ...prev, rating: star }))}
-                                    className="focus:outline-none"
-                                  >
-                                    <Star
-                                      className={`w-6 h-6 ${
-                                        star <= editReviewData.rating
-                                          ? 'text-yellow-500 fill-current'
-                                          : 'text-gray-300'
-                                      } hover:text-yellow-400 transition-colors`}
-                                    />
-                                  </button>
-                                ))}
-                                <span className="ml-2 text-sm text-muted-foreground">
-                                  {editReviewData.rating}/5
-                                </span>
-                              </div>
-                            </div>
-
-                            <div>
-                              <Label htmlFor="edit-comment">Comment</Label>
-                              <Textarea
-                                id="edit-comment"
-                                value={editReviewData.comment}
-                                onChange={(e) => setEditReviewData(prev => ({ ...prev, comment: e.target.value }))}
-                                placeholder="Review comment"
-                                rows={4}
-                                className="mt-2"
-                              />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                              <Button
-                                onClick={handleUpdateReview}
-                                disabled={processingId === editingReview?.id}
-                                className="flex-1"
-                              >
-                                {processingId === editingReview?.id ? (
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                )}
-                                Update Review
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => setEditingReview(null)}
-                                className="flex-1"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteReview(review.id!)}
-                        disabled={processingId === review.id}
-                      >
-                        {processingId === review.id ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4 mr-2" />
-                        )}
-                        Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+            <p className="text-muted-foreground">Placeholder for reviews management</p>
           </TabsContent>
         </Tabs>
       </div>

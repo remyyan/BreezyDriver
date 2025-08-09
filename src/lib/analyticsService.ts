@@ -129,11 +129,17 @@ export const updateLocationStats = async (
         ratingSum: event === 'location_rated' && metadata?.rating ? metadata.rating : 0,
         ratingCount: event === 'location_rated' ? 1 : 0,
         averageRating: event === 'location_rated' && metadata?.rating ? metadata.rating : 0,
-        lastViewed: event === 'location_viewed' ? now : undefined,
-        lastVisited: event === 'location_visited' ? now : undefined,
         createdAt: now,
         updatedAt: now
       };
+
+      // Only add optional fields if they have values
+      if (event === 'location_viewed') {
+        newStats.lastViewed = now;
+      }
+      if (event === 'location_visited') {
+        newStats.lastVisited = now;
+      }
       
       await setDoc(statsRef, newStats);
     } else {
@@ -182,7 +188,7 @@ export const updateAppStats = async (event: AnalyticsEvent): Promise<void> => {
         break;
     }
 
-    await updateDoc(statsRef, updates);
+    await setDoc(statsRef, updates, { merge: true });
 
   } catch (error) {
     console.error('Error updating app stats:', error);

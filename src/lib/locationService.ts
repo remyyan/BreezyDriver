@@ -80,7 +80,7 @@ export const addLocation = async (
       reviewCount: 0,
       submittedBy: userId,
       submittedAt: new Date(),
-      isApproved: false, // Requires moderation
+      isApproved: true, // Auto-approve new locations
       images: []
     };
 
