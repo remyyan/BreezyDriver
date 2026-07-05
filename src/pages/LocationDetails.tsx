@@ -298,7 +298,7 @@ const LocationDetails = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Location Image */}
             <Card>
-              <div className="relative h-64 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-t-lg overflow-hidden">
+              <div className="relative h-64 bg-muted rounded-t-lg overflow-hidden">
                 {location.images && location.images.length > 0 ? (
                   <img
                     src={location.images[0]}

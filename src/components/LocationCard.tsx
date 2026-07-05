@@ -60,7 +60,7 @@ const LocationCard = ({
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-0 bg-card/90 backdrop-blur-sm">
       {/* Image Header */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
+      <div className="relative h-48 bg-muted">
         {image ? (
           <img src={image} alt={name} className="w-full h-full object-cover" />
         ) : (

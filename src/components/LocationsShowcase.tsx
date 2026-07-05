@@ -170,7 +170,7 @@ const LocationsShowcase = () => {
 
         {/* CTA Section */}
         <div className="text-center">
-          <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
+          <Card className="border-border/70 bg-card">
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">
                 Don't See Your Favorite Spot?

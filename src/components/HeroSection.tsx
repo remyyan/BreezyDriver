@@ -40,7 +40,7 @@ const HeroSection = () => {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-secondary/60" />
+        <div className="absolute inset-0 bg-slate-950/80" />
       </div>
 
       {/* Content */}
@@ -51,9 +51,6 @@ const HeroSection = () => {
             <h1 className="text-5xl md:text-7xl font-bold mb-4 tracking-tight">
               Breezy<span className="text-accent">Driver</span>
             </h1>
-            <p className="text-xl md:text-2xl font-medium opacity-90">
-              Ontario's #1 Practice Spot Discovery App
-            </p>
           </div>
 
           {/* Main Headline */}

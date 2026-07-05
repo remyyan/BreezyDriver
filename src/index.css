@@ -64,11 +64,6 @@ All colors MUST be HSL.
     --location-moderate: 38 92% 58%;
     --location-challenging: 0 84% 55%;
 
-    /* Gradients for visual appeal */
-    --gradient-primary: linear-gradient(135deg, hsl(214, 84%, 48%), hsl(214, 70%, 60%));
-    --gradient-secondary: linear-gradient(135deg, hsl(142, 76%, 45%), hsl(142, 60%, 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(214, 84%, 48%), hsl(142, 76%, 45%));
-    
     /* Shadows for depth */
     --shadow-sm: 0 2px 4px -1px hsl(214, 25%, 15%, 0.1);
     --shadow-md: 0 4px 12px -2px hsl(214, 25%, 15%, 0.15);
