@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Theme = 'light' | 'dark' | 'neon' | 'ocean' | 'forest' | 'sunset';
+export type Theme = 'light' | 'dark' | 'slate' | 'blue';
 
 interface ThemeContextType {
   theme: Theme;
@@ -31,61 +31,41 @@ const themes = [
   {
     id: 'light' as Theme,
     name: 'Light',
-    description: 'Clean and bright theme',
+    description: 'Clean and professional light theme',
     preview: {
-      primary: '#2563eb',
-      secondary: '#16a34a',
+      primary: '#3b82f6',
+      secondary: '#6b7280',
       background: '#ffffff',
     },
   },
   {
     id: 'dark' as Theme,
     name: 'Dark',
-    description: 'Easy on the eyes',
+    description: 'Professional dark theme',
     preview: {
       primary: '#3b82f6',
-      secondary: '#22c55e',
+      secondary: '#d1d5db',
+      background: '#1f2937',
+    },
+  },
+  {
+    id: 'slate' as Theme,
+    name: 'Slate',
+    description: 'Neutral slate theme',
+    preview: {
+      primary: '#3b82f6',
+      secondary: '#94a3b8',
       background: '#0f172a',
     },
   },
   {
-    id: 'neon' as Theme,
-    name: 'Neon Purple',
-    description: 'Cool black and purple neon theme',
+    id: 'blue' as Theme,
+    name: 'Blue Accent',
+    description: 'Blue-focused professional theme',
     preview: {
-      primary: '#a855f7',
-      secondary: '#ec4899',
-      background: '#0a0a0a',
-    },
-  },
-  {
-    id: 'ocean' as Theme,
-    name: 'Ocean Blue',
-    description: 'Deep blue ocean vibes',
-    preview: {
-      primary: '#0ea5e9',
-      secondary: '#06b6d4',
-      background: '#0c4a6e',
-    },
-  },
-  {
-    id: 'forest' as Theme,
-    name: 'Forest Green',
-    description: 'Natural green forest theme',
-    preview: {
-      primary: '#059669',
-      secondary: '#65a30d',
-      background: '#064e3b',
-    },
-  },
-  {
-    id: 'sunset' as Theme,
-    name: 'Sunset Orange',
-    description: 'Warm sunset colors',
-    preview: {
-      primary: '#ea580c',
-      secondary: '#dc2626',
-      background: '#7c2d12',
+      primary: '#1e40af',
+      secondary: '#64748b',
+      background: '#f8fafc',
     },
   },
 ];
@@ -93,7 +73,7 @@ const themes = [
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('breezy-driver-theme');
-    return (saved as Theme) || 'neon';
+    return (saved as Theme) || 'light';
   });
 
   const setTheme = (newTheme: Theme) => {

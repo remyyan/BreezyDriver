@@ -65,14 +65,9 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ className }) => {
                 </div>
                 
                 {/* Special badges for unique themes */}
-                {themeOption.id === 'neon' && (
-                  <Badge variant="secondary" className="text-xs">
-                    ✨ Neon Effects
-                  </Badge>
-                )}
                 {themeOption.id === 'light' && (
                   <Badge variant="outline" className="text-xs">
-                    🌞 Default
+                    ☀️ Default
                   </Badge>
                 )}
               </div>
